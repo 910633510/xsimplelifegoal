@@ -1,5 +1,9 @@
 .superpowers/
-.worktrees/
 .DS_Store
 DerivedData/
 build/
+*.xcuserstate
+xcuserdata/
+Vendor/llama.cpp/
+Vendor/Frameworks/
+*.gguf
