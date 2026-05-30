@@ -3,9 +3,20 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @State private var showModelSetup = false
+    @State private var setupViewModel = ModelSetupViewModel()
 
     var body: some View {
-        GoalStoreRootView(modelContext: modelContext)
+        Group {
+            if showModelSetup {
+                ModelSetupView(viewModel: setupViewModel)
+            } else {
+                GoalStoreRootView(modelContext: modelContext)
+            }
+        }
+        .onAppear {
+            showModelSetup = !setupViewModel.isReady
+        }
     }
 }
 

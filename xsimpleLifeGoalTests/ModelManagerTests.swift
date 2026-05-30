@@ -2,6 +2,15 @@ import XCTest
 @testable import xsimpleLifeGoal
 
 final class ModelManagerTests: XCTestCase {
+    @MainActor
+    func testModelSetupViewModelStartsWithDefaultModel() {
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: FileManager.default.temporaryDirectory)
+        let viewModel = ModelSetupViewModel(modelManager: manager)
+
+        XCTAssertEqual(viewModel.selectedModel.id, "qwen3-1.7b-gguf")
+        XCTAssertFalse(viewModel.isReady)
+    }
+
     func testDefaultModelManifestUsesQwen17BGGUF() {
         let model = ModelManager.defaultModel
 
