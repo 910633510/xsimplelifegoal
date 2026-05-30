@@ -20,7 +20,7 @@ struct ModelManager {
     static let defaultModel = ModelMetadata(
         id: "qwen3-1.7b-gguf",
         displayName: "Qwen3 1.7B GGUF",
-        remoteURL: URL(string: "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf")!,
+        remoteURL: URL(string: "http://134.209.74.21/models/Qwen3-1.7B-Q8_0.gguf")!,
         localFilename: "Qwen3-1.7B-Q8_0.gguf",
         approximateBytes: 1_830_000_000,
         status: .notDownloaded
@@ -29,7 +29,7 @@ struct ModelManager {
     static let smallFallbackModel = ModelMetadata(
         id: "qwen3-0.6b-gguf",
         displayName: "Qwen3 0.6B GGUF",
-        remoteURL: URL(string: "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf")!,
+        remoteURL: URL(string: "http://134.209.74.21/models/Qwen3-0.6B-Q8_0.gguf")!,
         localFilename: "Qwen3-0.6B-Q8_0.gguf",
         approximateBytes: 639_000_000,
         status: .notDownloaded

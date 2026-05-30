@@ -98,7 +98,7 @@ final class ModelManagerTests: XCTestCase {
 
         XCTAssertEqual(model.id, "qwen3-1.7b-gguf")
         XCTAssertEqual(model.displayName, "Qwen3 1.7B GGUF")
-        XCTAssertEqual(model.remoteURL.absoluteString, "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-Q8_0.gguf")
+        XCTAssertEqual(model.remoteURL.absoluteString, "http://134.209.74.21/models/Qwen3-1.7B-Q8_0.gguf")
         XCTAssertEqual(model.localFilename, "Qwen3-1.7B-Q8_0.gguf")
         XCTAssertEqual(model.approximateBytes, 1_830_000_000)
         XCTAssertEqual(model.status, .notDownloaded)
@@ -109,7 +109,7 @@ final class ModelManagerTests: XCTestCase {
 
         XCTAssertEqual(model.id, "qwen3-0.6b-gguf")
         XCTAssertEqual(model.displayName, "Qwen3 0.6B GGUF")
-        XCTAssertEqual(model.remoteURL.absoluteString, "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf")
+        XCTAssertEqual(model.remoteURL.absoluteString, "http://134.209.74.21/models/Qwen3-0.6B-Q8_0.gguf")
         XCTAssertEqual(model.localFilename, "Qwen3-0.6B-Q8_0.gguf")
         XCTAssertEqual(model.approximateBytes, 639_000_000)
         XCTAssertEqual(model.status, .notDownloaded)
