@@ -40,7 +40,7 @@ private struct GoalStoreRootView: View {
     private func initializeStoreIfNeeded() {
         guard store == nil else { return }
         let repository = SwiftDataGoalRepository(context: modelContext)
-        let planner = GoalPlanningEngine(generator: UnavailableTextGenerator())
+        let planner = GoalPlanningEngine(generator: LocalLLMService())
         store = GoalStore(repository: repository, scheduler: GoalScheduler(), planningEngine: planner)
     }
 }

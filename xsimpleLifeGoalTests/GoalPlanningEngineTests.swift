@@ -36,6 +36,19 @@ final class GoalPlanningEngineTests: XCTestCase {
             XCTFail("Expected CancellationError, got \(error).")
         }
     }
+
+    func testLocalLLMServiceReportsRuntimeUnavailableWithoutFramework() async {
+        let service = LocalLLMService()
+
+        do {
+            _ = try await service.generateText(prompt: "Return JSON")
+            XCTFail("Expected runtime unavailable error")
+        } catch LocalLLMError.runtimeUnavailable {
+            XCTAssertTrue(true)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
 }
 
 private struct FixtureTextGenerator: TextGenerating {
