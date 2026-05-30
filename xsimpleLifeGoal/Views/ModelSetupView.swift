@@ -31,6 +31,20 @@ struct ModelSetupView: View {
                     .background(AppTheme.card)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
 
+                if viewModel.isDownloading {
+                    VStack(spacing: 8) {
+                        ProgressView(value: viewModel.downloadProgress ?? 0)
+                            .tint(AppTheme.accent)
+                        Text(viewModel.downloadProgressText)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.muted)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Download progress")
+                    .accessibilityValue(viewModel.downloadProgressText)
+                }
+
                 VStack(spacing: 12) {
                     Button {
                         viewModel.useSmallModel()
@@ -52,7 +66,7 @@ struct ModelSetupView: View {
                         }
                     } label: {
                         if viewModel.isDownloading {
-                            ProgressView()
+                            Label("Downloading", systemImage: "hourglass")
                                 .frame(maxWidth: .infinity)
                         } else {
                             Label("Download Model", systemImage: "square.and.arrow.down")

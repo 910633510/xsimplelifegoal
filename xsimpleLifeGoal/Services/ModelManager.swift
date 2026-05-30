@@ -15,11 +15,12 @@ enum ModelDownloadError: LocalizedError, Equatable {
 }
 
 struct ModelManager {
-    typealias DownloadFile = @MainActor (URL) async throws -> (URL, URLResponse)
+    typealias DownloadProgressHandler = (Double) -> Void
+    typealias DownloadFile = @MainActor (URL, @escaping DownloadProgressHandler) async throws -> (URL, URLResponse)
 
     static let defaultModel = ModelMetadata(
         id: "qwen3-1.7b-gguf",
-        displayName: "Qwen3 1.7B GGUF",
+        displayName: "Goal Planner AI",
         remoteURL: URL(string: "http://134.209.74.21/models/Qwen3-1.7B-Q8_0.gguf")!,
         localFilename: "Qwen3-1.7B-Q8_0.gguf",
         approximateBytes: 1_830_000_000,
@@ -28,7 +29,7 @@ struct ModelManager {
 
     static let smallFallbackModel = ModelMetadata(
         id: "qwen3-0.6b-gguf",
-        displayName: "Qwen3 0.6B GGUF",
+        displayName: "Goal Planner AI Lite",
         remoteURL: URL(string: "http://134.209.74.21/models/Qwen3-0.6B-Q8_0.gguf")!,
         localFilename: "Qwen3-0.6B-Q8_0.gguf",
         approximateBytes: 639_000_000,
@@ -46,8 +47,8 @@ struct ModelManager {
         } else {
             self.applicationSupportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         }
-        self.downloadFile = downloadFile ?? { url in
-            try await URLSession.shared.download(from: url)
+        self.downloadFile = downloadFile ?? { url, reportProgress in
+            try await ProgressReportingModelDownloader().download(from: url, progress: reportProgress)
         }
     }
 
@@ -69,9 +70,9 @@ struct ModelManager {
     }
 
     @MainActor
-    func download(_ model: ModelMetadata) async throws {
+    func download(_ model: ModelMetadata, progress: @escaping DownloadProgressHandler = { _ in }) async throws {
         try ensureModelDirectoryExists()
-        let (temporaryURL, response) = try await downloadFile(model.remoteURL)
+        let (temporaryURL, response) = try await downloadFile(model.remoteURL, progress)
         do {
             try validate(response: response)
             guard isValidDownloadedModel(at: temporaryURL) else {
@@ -104,5 +105,80 @@ struct ModelManager {
         }
         try? fileHandle.close()
         return header == Data("GGUF".utf8)
+    }
+}
+
+private final class ProgressReportingModelDownloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private var continuation: CheckedContinuation<(URL, URLResponse), Error>?
+    private var downloadedFileURL: URL?
+    private var downloadedResponse: URLResponse?
+    private var session: URLSession?
+    private var progressHandler: ModelManager.DownloadProgressHandler = { _ in }
+
+    @MainActor
+    func download(from url: URL, progress: @escaping ModelManager.DownloadProgressHandler) async throws -> (URL, URLResponse) {
+        progressHandler = progress
+        let delegateQueue = OperationQueue.main
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: delegateQueue)
+        self.session = session
+        defer { session.invalidateAndCancel() }
+        let result = try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            session.downloadTask(with: url).resume()
+        }
+        return result
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        let progress = min(max(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite), 0), 1)
+        progressHandler(progress)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        guard continuation != nil else { return }
+        do {
+            let temporaryURL = FileManager.default.temporaryDirectory
+                .appending(path: UUID().uuidString)
+                .appendingPathExtension("download")
+            try? FileManager.default.removeItem(at: temporaryURL)
+            try FileManager.default.moveItem(at: location, to: temporaryURL)
+            downloadedFileURL = temporaryURL
+            downloadedResponse = downloadTask.response
+        } catch {
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        guard let continuation else { return }
+        defer { self.continuation = nil }
+
+        if let error {
+            continuation.resume(throwing: error)
+            return
+        }
+
+        guard let downloadedFileURL, let downloadedResponse else {
+            continuation.resume(throwing: ModelDownloadError.invalidDownloadedFile)
+            return
+        }
+
+        continuation.resume(returning: (downloadedFileURL, downloadedResponse))
     }
 }

@@ -4,6 +4,8 @@ struct GoalDetailView: View {
     @Environment(\.calendar) private var calendar
     @Bindable var store: GoalStore
     let goalID: UUID
+    @State private var selectedDate: Date?
+    @State private var visibleMonth: Date?
     @State private var errorMessage: String?
 
     private var goal: Goal? {
@@ -13,6 +15,9 @@ struct GoalDetailView: View {
     var body: some View {
         ScrollView {
             if let goal {
+                let activeSelectedDate = selectedDate(for: goal)
+                let activeVisibleMonth = visibleMonth(for: goal, selectedDate: activeSelectedDate)
+
                 VStack(alignment: .leading, spacing: 16) {
                     Text(goal.originalDescription)
                         .font(.body)
@@ -22,12 +27,28 @@ struct GoalDetailView: View {
                         .background(AppTheme.card)
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
 
-                    if let plan = goal.dailyPlan(on: Date(), calendar: calendar) {
-                        DailyChecklistView(plan: plan) { itemID, isCompleted in
+                    GoalCalendarView(
+                        goal: goal,
+                        visibleMonth: activeVisibleMonth,
+                        selectedDate: activeSelectedDate,
+                        onSelectDate: { date in
+                            selectedDate = date
+                            visibleMonth = GoalCalendarHelper.monthStart(containing: date, calendar: calendar)
+                        },
+                        onShowPreviousMonth: {
+                            visibleMonth = calendar.date(byAdding: .month, value: -1, to: activeVisibleMonth)
+                        },
+                        onShowNextMonth: {
+                            visibleMonth = calendar.date(byAdding: .month, value: 1, to: activeVisibleMonth)
+                        }
+                    )
+
+                    if let plan = goal.dailyPlan(on: activeSelectedDate, calendar: calendar) {
+                        DailyChecklistView(title: checklistTitle(for: activeSelectedDate), plan: plan) { itemID, isCompleted in
                             setChecklistItem(itemID: itemID, isCompleted: isCompleted)
                         }
                     } else {
-                        Text("No checklist yet")
+                        Text("No work scheduled for \(checklistTitle(for: activeSelectedDate))")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.muted)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -63,6 +84,24 @@ struct GoalDetailView: View {
         } message: {
             Text(errorMessage ?? "Please try again.")
         }
+    }
+
+    private func selectedDate(for goal: Goal) -> Date {
+        GoalCalendarHelper.clampedSelection(preferred: selectedDate ?? Date(), goal: goal, calendar: calendar)
+    }
+
+    private func visibleMonth(for goal: Goal, selectedDate: Date) -> Date {
+        let preferredMonth = GoalCalendarHelper.monthStart(containing: visibleMonth ?? selectedDate, calendar: calendar)
+        let monthHasGoalDays = GoalCalendarHelper.monthGrid(containing: preferredMonth, goal: goal, calendar: calendar)
+            .contains { $0.date != nil && $0.isInGoalRange }
+        if monthHasGoalDays {
+            return preferredMonth
+        }
+        return GoalCalendarHelper.monthStart(containing: selectedDate, calendar: calendar)
+    }
+
+    private func checklistTitle(for date: Date) -> String {
+        date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 
     private func setChecklistItem(itemID: UUID, isCompleted: Bool) {

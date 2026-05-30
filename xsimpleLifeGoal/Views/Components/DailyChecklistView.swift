@@ -1,12 +1,19 @@
 import SwiftUI
 
 struct DailyChecklistView: View {
+    let title: String
     let plan: DailyPlan
     let onToggle: (UUID, Bool) -> Void
 
+    init(title: String = "Today", plan: DailyPlan, onToggle: @escaping (UUID, Bool) -> Void) {
+        self.title = title
+        self.plan = plan
+        self.onToggle = onToggle
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Today")
+            Text(title)
                 .font(.headline)
                 .foregroundStyle(AppTheme.ink)
 

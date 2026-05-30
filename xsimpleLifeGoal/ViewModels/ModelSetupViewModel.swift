@@ -5,13 +5,20 @@ import Observation
 @Observable
 final class ModelSetupViewModel {
     private let modelManager: ModelManager
-    private let downloadSelectedModelAction: @MainActor (ModelMetadata) async throws -> Void
+    private let downloadSelectedModelAction: @MainActor (ModelMetadata, @escaping ModelManager.DownloadProgressHandler) async throws -> Void
 
     var selectedModel: ModelMetadata
     var isReady: Bool
     var isDownloading = false
+    var downloadProgress: Double?
     var statusText: String
     var allowsDashboardWithoutReadyModel = false
+
+    var downloadProgressText: String {
+        guard let downloadProgress else { return "" }
+        let percent = Int((downloadProgress * 100).rounded())
+        return "\(percent)%"
+    }
 
     var selectedModelLocalURL: URL {
         modelManager.localURL(for: selectedModel)
@@ -20,11 +27,11 @@ final class ModelSetupViewModel {
     init(
         modelManager: ModelManager = ModelManager(),
         selectedModel: ModelMetadata = ModelManager.defaultModel,
-        downloadSelectedModelAction: (@MainActor (ModelMetadata) async throws -> Void)? = nil
+        downloadSelectedModelAction: (@MainActor (ModelMetadata, @escaping ModelManager.DownloadProgressHandler) async throws -> Void)? = nil
     ) {
         self.modelManager = modelManager
-        self.downloadSelectedModelAction = downloadSelectedModelAction ?? { model in
-            try await modelManager.download(model)
+        self.downloadSelectedModelAction = downloadSelectedModelAction ?? { model, reportProgress in
+            try await modelManager.download(model, progress: reportProgress)
         }
         let selectedModelIsReady = modelManager.isModelReady(selectedModel)
         self.selectedModel = selectedModel
@@ -49,17 +56,22 @@ final class ModelSetupViewModel {
         let model = selectedModel
         isDownloading = true
         isReady = false
+        downloadProgress = 0
         statusText = "Downloading \(model.displayName)..."
         do {
-            try await downloadSelectedModelAction(model)
+            try await downloadSelectedModelAction(model) { [weak self] progress in
+                self?.downloadProgress = min(max(progress, 0), 1)
+            }
             guard modelManager.isModelReady(model) else {
                 throw ModelDownloadError.invalidDownloadedFile
             }
             isReady = true
+            downloadProgress = 1
             statusText = "Model ready"
             isDownloading = false
         } catch {
             isReady = false
+            downloadProgress = nil
             statusText = "Download failed: \(error.localizedDescription)"
             isDownloading = false
             throw error

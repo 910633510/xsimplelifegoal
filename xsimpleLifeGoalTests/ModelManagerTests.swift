@@ -62,7 +62,7 @@ final class ModelManagerTests: XCTestCase {
     @MainActor
     func testDownloadSelectedModelMarksReadyAfterSuccessfulDownload() async throws {
         let manager = makeTemporaryModelManager()
-        let viewModel = ModelSetupViewModel(modelManager: manager) { model in
+        let viewModel = ModelSetupViewModel(modelManager: manager) { model, _ in
             try manager.ensureModelDirectoryExists()
             try Data("GGUF test model".utf8).write(to: manager.localURL(for: model))
         }
@@ -72,12 +72,65 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertFalse(viewModel.isDownloading)
         XCTAssertTrue(viewModel.isReady)
         XCTAssertEqual(viewModel.statusText, "Model ready")
+        XCTAssertEqual(viewModel.downloadProgress, 1.0)
+        XCTAssertEqual(viewModel.downloadProgressText, "100%")
+    }
+
+    @MainActor
+    func testDownloadSelectedModelStartsProgressAtZeroBeforeDownloadActionCompletes() async throws {
+        let manager = makeTemporaryModelManager()
+        let actionStarted = expectation(description: "download action started")
+        var unblockDownload: CheckedContinuation<Void, Never>?
+        let viewModel = ModelSetupViewModel(modelManager: manager) { model, _ in
+            actionStarted.fulfill()
+            await withCheckedContinuation { continuation in
+                unblockDownload = continuation
+            }
+            try manager.ensureModelDirectoryExists()
+            try Data("GGUF test model".utf8).write(to: manager.localURL(for: model))
+        }
+
+        let task = Task {
+            try await viewModel.downloadSelectedModel()
+        }
+        await fulfillment(of: [actionStarted], timeout: 1.0)
+
+        XCTAssertTrue(viewModel.isDownloading)
+        XCTAssertEqual(viewModel.downloadProgress, 0)
+        XCTAssertEqual(viewModel.downloadProgressText, "0%")
+
+        unblockDownload?.resume()
+        try await task.value
+    }
+
+    @MainActor
+    func testDownloadSelectedModelUpdatesProgressFromDownloadCallback() async throws {
+        let manager = makeTemporaryModelManager()
+        var viewModel: ModelSetupViewModel!
+        viewModel = ModelSetupViewModel(modelManager: manager) { model, reportProgress in
+            reportProgress(0.25)
+            XCTAssertEqual(viewModel.downloadProgress, 0.25)
+            XCTAssertEqual(viewModel.downloadProgressText, "25%")
+
+            reportProgress(0.92)
+            XCTAssertEqual(viewModel.downloadProgress, 0.92)
+            XCTAssertEqual(viewModel.downloadProgressText, "92%")
+
+            try manager.ensureModelDirectoryExists()
+            try Data("GGUF test model".utf8).write(to: manager.localURL(for: model))
+        }
+
+        try await viewModel.downloadSelectedModel()
+
+        XCTAssertEqual(viewModel.downloadProgress, 1.0)
+        XCTAssertEqual(viewModel.downloadProgressText, "100%")
     }
 
     @MainActor
     func testDownloadSelectedModelSurfacesFailureAndDoesNotMarkReady() async {
         let manager = makeTemporaryModelManager()
-        let viewModel = ModelSetupViewModel(modelManager: manager) { _ in
+        let viewModel = ModelSetupViewModel(modelManager: manager) { _, reportProgress in
+            reportProgress(0.5)
             throw TestDownloadError.failed
         }
 
@@ -90,6 +143,8 @@ final class ModelManagerTests: XCTestCase {
 
         XCTAssertFalse(viewModel.isDownloading)
         XCTAssertFalse(viewModel.isReady)
+        XCTAssertNil(viewModel.downloadProgress)
+        XCTAssertEqual(viewModel.downloadProgressText, "")
         XCTAssertTrue(viewModel.statusText.contains("Download failed"))
     }
 
@@ -97,7 +152,7 @@ final class ModelManagerTests: XCTestCase {
         let model = ModelManager.defaultModel
 
         XCTAssertEqual(model.id, "qwen3-1.7b-gguf")
-        XCTAssertEqual(model.displayName, "Qwen3 1.7B GGUF")
+        XCTAssertEqual(model.displayName, "Goal Planner AI")
         XCTAssertEqual(model.remoteURL.absoluteString, "http://134.209.74.21/models/Qwen3-1.7B-Q8_0.gguf")
         XCTAssertEqual(model.localFilename, "Qwen3-1.7B-Q8_0.gguf")
         XCTAssertEqual(model.approximateBytes, 1_830_000_000)
@@ -108,7 +163,7 @@ final class ModelManagerTests: XCTestCase {
         let model = ModelManager.smallFallbackModel
 
         XCTAssertEqual(model.id, "qwen3-0.6b-gguf")
-        XCTAssertEqual(model.displayName, "Qwen3 0.6B GGUF")
+        XCTAssertEqual(model.displayName, "Goal Planner AI Lite")
         XCTAssertEqual(model.remoteURL.absoluteString, "http://134.209.74.21/models/Qwen3-0.6B-Q8_0.gguf")
         XCTAssertEqual(model.localFilename, "Qwen3-0.6B-Q8_0.gguf")
         XCTAssertEqual(model.approximateBytes, 639_000_000)
@@ -146,7 +201,7 @@ final class ModelManagerTests: XCTestCase {
         let temporaryDownloadURL = tempDirectory.appending(path: "download.gguf")
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         try Data("GGUF test model".utf8).write(to: temporaryDownloadURL)
-        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory) { url in
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory) { url, _ in
             let response = HTTPURLResponse(
                 url: url,
                 statusCode: 503,
@@ -172,7 +227,7 @@ final class ModelManagerTests: XCTestCase {
         let temporaryDownloadURL = tempDirectory.appending(path: "download.gguf")
         try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
         try Data("not a model".utf8).write(to: temporaryDownloadURL)
-        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory) { url in
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory) { url, _ in
             let response = HTTPURLResponse(
                 url: url,
                 statusCode: 200,
