@@ -40,7 +40,67 @@ final class GoalSchedulerTests: XCTestCase {
         XCTAssertFalse(plans[0].isRescaled)
     }
 
-    func testRedistributesIncompleteItemsAcrossRemainingDays() throws {
+    func testEmptyTemplatesUseFocusedTimeFallback() throws {
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let scheduler = GoalScheduler(calendar: calendar)
+
+        let plans = scheduler.makeDailyPlans(
+            goalID: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            startDate: start,
+            targetDate: start,
+            templates: []
+        )
+
+        XCTAssertEqual(plans[0].items.map(\.text), ["Spend focused time on this goal"])
+    }
+
+    func testBaseDailyPlansTruncateTemplatesToThreeItems() throws {
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let scheduler = GoalScheduler(calendar: calendar)
+
+        let plans = scheduler.makeDailyPlans(
+            goalID: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!,
+            startDate: start,
+            targetDate: start,
+            templates: ["Read", "Practice", "Review", "Stretch"]
+        )
+
+        XCTAssertEqual(plans[0].items.map(\.text), ["Read", "Practice", "Review"])
+    }
+
+    func testGeneratedChecklistItemsStartSmallAndIncomplete() throws {
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let scheduler = GoalScheduler(calendar: calendar)
+
+        let plans = scheduler.makeDailyPlans(
+            goalID: UUID(uuidString: "00000000-0000-0000-0000-000000000005")!,
+            startDate: start,
+            targetDate: start,
+            templates: ["Read", "Practice"]
+        )
+
+        XCTAssertEqual(plans[0].items.map(\.estimatedEffort), ["Small", "Small"])
+        XCTAssertTrue(plans[0].items.allSatisfy { !$0.isCompleted })
+        XCTAssertTrue(plans[0].items.allSatisfy { $0.completedDate == nil })
+    }
+
+    func testTargetDateBeforeStartDateProducesSingleDayPlan() throws {
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 1)))
+        let scheduler = GoalScheduler(calendar: calendar)
+
+        let plans = scheduler.makeDailyPlans(
+            goalID: UUID(uuidString: "00000000-0000-0000-0000-000000000006")!,
+            startDate: start,
+            targetDate: target,
+            templates: ["Read"]
+        )
+
+        XCTAssertEqual(plans.count, 1)
+        XCTAssertTrue(calendar.isDate(plans[0].date, inSameDayAs: start))
+    }
+
+    func testRedistributesIncompleteItemsAcrossRemainingDaysAndMayExceedBaseCap() throws {
         let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
         let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
         let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 6, day: 1)))
@@ -59,6 +119,60 @@ final class GoalSchedulerTests: XCTestCase {
         XCTAssertTrue(rescaled[1].isRescaled)
         XCTAssertTrue(rescaled[2].isRescaled)
         XCTAssertTrue(rescaled[3].isRescaled)
-        XCTAssertGreaterThan(rescaled[1].items.count, plans[1].items.count)
+        XCTAssertGreaterThan(
+            rescaled[1].items.count,
+            plans[1].items.count,
+            "Rescaling can exceed the base three-item cap to preserve missed work."
+        )
+    }
+
+    func testRedistributionClearsCompletedDateOnCopiedMissedItems() throws {
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30)))
+        let scheduler = GoalScheduler(calendar: calendar)
+        var plans = scheduler.makeDailyPlans(
+            goalID: UUID(uuidString: "00000000-0000-0000-0000-000000000007")!,
+            startDate: start,
+            targetDate: target,
+            templates: ["Read"]
+        )
+        plans[0].items[0].text = "Missed unique task"
+        plans[0].items[0].completedDate = start
+
+        let rescaled = scheduler.rescaleAfterMissedDay(plans: plans, missedDate: start, targetDate: target)
+        let redistributed = try XCTUnwrap(rescaled[1].items.first { $0.text == "Missed unique task" })
+
+        XCTAssertFalse(redistributed.isCompleted)
+        XCTAssertNil(redistributed.completedDate)
+        XCTAssertNotEqual(redistributed.id, plans[0].items[0].id)
+    }
+
+    func testGoalProgressFractionReflectsCompletedChecklistItems() throws {
+        let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000008")!
+        let goal = Goal(
+            id: goalID,
+            title: "Learn SwiftUI",
+            originalDescription: "Build one tiny app",
+            createdDate: date,
+            targetDate: date,
+            status: .active,
+            selectedModelID: "local-model",
+            dailyPlans: [
+                DailyPlan(
+                    id: UUID(),
+                    goalID: goalID,
+                    date: date,
+                    items: [
+                        ChecklistItem(id: UUID(), text: "Read", estimatedEffort: "Small", isCompleted: true, completedDate: date),
+                        ChecklistItem(id: UUID(), text: "Practice", estimatedEffort: "Small", isCompleted: false, completedDate: nil),
+                        ChecklistItem(id: UUID(), text: "Review", estimatedEffort: "Small", isCompleted: true, completedDate: date)
+                    ],
+                    isRescaled: false
+                )
+            ]
+        )
+
+        XCTAssertEqual(goal.progressFraction, 2.0 / 3.0, accuracy: 0.0001)
     }
 }

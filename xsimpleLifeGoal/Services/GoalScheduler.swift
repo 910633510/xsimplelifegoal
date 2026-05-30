@@ -59,6 +59,7 @@ struct GoalScheduler {
                 return plan
             }
             var updated = plan
+            // Rescale preserves missed work, so remaining days may exceed the base three-item cap.
             updated.items.append(contentsOf: itemBuckets[dateIndex])
             updated.isRescaled = true
             return updated
