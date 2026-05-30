@@ -9,6 +9,14 @@ enum LocalLLMError: Error, Equatable {
 struct LocalLLMService: TextGenerating {
     var modelURL: URL?
 
+    static var isRuntimeAvailable: Bool {
+        #if canImport(llama)
+        true
+        #else
+        false
+        #endif
+    }
+
     init(modelURL: URL? = nil) {
         self.modelURL = modelURL
     }
