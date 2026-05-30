@@ -84,6 +84,31 @@ final class GoalSchedulerTests: XCTestCase {
         XCTAssertTrue(plans[0].items.allSatisfy { $0.completedDate == nil })
     }
 
+    func testMakeDailyPlansUsesInjectedIDsDeterministically() throws {
+        let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000009")!
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30)))
+        let firstScheduler = GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator())
+        let secondScheduler = GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator())
+
+        let firstPlans = firstScheduler.makeDailyPlans(
+            goalID: goalID,
+            startDate: start,
+            targetDate: target,
+            templates: ["Read", "Practice"]
+        )
+        let secondPlans = secondScheduler.makeDailyPlans(
+            goalID: goalID,
+            startDate: start,
+            targetDate: target,
+            templates: ["Read", "Practice"]
+        )
+
+        XCTAssertEqual(firstPlans, secondPlans)
+        XCTAssertEqual(firstPlans.map(\.id), [deterministicID(1), deterministicID(4)])
+        XCTAssertEqual(firstPlans[0].items.map(\.id), [deterministicID(2), deterministicID(3)])
+    }
+
     func testTargetDateBeforeStartDateProducesSingleDayPlan() throws {
         let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
         let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 1)))
@@ -147,6 +172,25 @@ final class GoalSchedulerTests: XCTestCase {
         XCTAssertNotEqual(redistributed.id, plans[0].items[0].id)
     }
 
+    func testRescaleAfterMissedDayIsIdempotentForSameMissedDate() throws {
+        let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000010")!
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 6, day: 1)))
+        let scheduler = GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator())
+        var plans = scheduler.makeDailyPlans(
+            goalID: goalID,
+            startDate: start,
+            targetDate: target,
+            templates: ["Read", "Practice", "Review"]
+        )
+        plans[0].items[0].isCompleted = true
+
+        let firstRescale = scheduler.rescaleAfterMissedDay(plans: plans, missedDate: start, targetDate: target)
+        let secondRescale = scheduler.rescaleAfterMissedDay(plans: firstRescale, missedDate: start, targetDate: target)
+
+        XCTAssertEqual(secondRescale, firstRescale)
+    }
+
     func testGoalProgressFractionReflectsCompletedChecklistItems() throws {
         let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
         let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000008")!
@@ -174,5 +218,17 @@ final class GoalSchedulerTests: XCTestCase {
         )
 
         XCTAssertEqual(goal.progressFraction, 2.0 / 3.0, accuracy: 0.0001)
+    }
+
+    private func makeDeterministicIDGenerator() -> () -> UUID {
+        var nextID = 1
+        return {
+            defer { nextID += 1 }
+            return self.deterministicID(nextID)
+        }
+    }
+
+    private func deterministicID(_ value: Int) -> UUID {
+        UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", value))!
     }
 }

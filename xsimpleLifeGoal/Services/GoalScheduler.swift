@@ -2,9 +2,11 @@ import Foundation
 
 struct GoalScheduler {
     var calendar: Calendar
+    private let makeID: () -> UUID
 
-    init(calendar: Calendar = .current) {
+    init(calendar: Calendar = .current, makeID: @escaping () -> UUID = UUID.init) {
         self.calendar = calendar
+        self.makeID = makeID
     }
 
     func resolveTargetDate(startDate: Date, requestedTargetDate: Date?) -> Date {
@@ -19,11 +21,11 @@ struct GoalScheduler {
         let normalizedTemplates = templates.isEmpty ? ["Spend focused time on this goal"] : templates
         return dates.map { date in
             DailyPlan(
-                id: UUID(),
+                id: makeID(),
                 goalID: goalID,
                 date: date,
                 items: normalizedTemplates.prefix(3).map { text in
-                    ChecklistItem(id: UUID(), text: text, estimatedEffort: "Small", isCompleted: false, completedDate: nil)
+                    ChecklistItem(id: makeID(), text: text, estimatedEffort: "Small", isCompleted: false, completedDate: nil)
                 },
                 isRescaled: false
             )
@@ -38,6 +40,11 @@ struct GoalScheduler {
         )
         guard !remainingDates.isEmpty else { return plans }
 
+        let hasAlreadyRescaledRemainingPlan = plans.contains { plan in
+            plan.isRescaled && remainingDates.contains { calendar.isDate($0, inSameDayAs: plan.date) }
+        }
+        guard !hasAlreadyRescaledRemainingPlan else { return plans }
+
         let missedItems = plans
             .filter { calendar.isDate($0.date, inSameDayAs: missedDay) }
             .flatMap(\.items)
@@ -48,7 +55,7 @@ struct GoalScheduler {
         var itemBuckets = Array(repeating: [ChecklistItem](), count: remainingDates.count)
         for (index, item) in missedItems.enumerated() {
             var redistributed = item
-            redistributed.id = UUID()
+            redistributed.id = makeID()
             redistributed.isCompleted = false
             redistributed.completedDate = nil
             itemBuckets[index % itemBuckets.count].append(redistributed)
