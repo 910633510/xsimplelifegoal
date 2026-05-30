@@ -13,6 +13,14 @@ final class ModelManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testModelSetupViewModelExposesSelectedModelLocalURL() {
+        let manager = makeTemporaryModelManager()
+        let viewModel = ModelSetupViewModel(modelManager: manager)
+
+        XCTAssertEqual(viewModel.selectedModelLocalURL, manager.localURL(for: ModelManager.defaultModel))
+    }
+
+    @MainActor
     func testModelSetupViewModelUsesSmallModelWhenRequested() {
         let manager = makeTemporaryModelManager()
         let viewModel = ModelSetupViewModel(modelManager: manager)
@@ -35,6 +43,40 @@ final class ModelManagerTests: XCTestCase {
 
         XCTAssertTrue(viewModel.allowsDashboardWithoutReadyModel)
         XCTAssertEqual(viewModel.statusText, "Using fallback planner until a model is ready.")
+    }
+
+    @MainActor
+    func testDownloadSelectedModelMarksReadyAfterSuccessfulDownload() async throws {
+        let manager = makeTemporaryModelManager()
+        let viewModel = ModelSetupViewModel(modelManager: manager) { model in
+            try manager.ensureModelDirectoryExists()
+            try Data("model".utf8).write(to: manager.localURL(for: model))
+        }
+
+        try await viewModel.downloadSelectedModel()
+
+        XCTAssertFalse(viewModel.isDownloading)
+        XCTAssertTrue(viewModel.isReady)
+        XCTAssertEqual(viewModel.statusText, "Model ready")
+    }
+
+    @MainActor
+    func testDownloadSelectedModelSurfacesFailureAndDoesNotMarkReady() async {
+        let manager = makeTemporaryModelManager()
+        let viewModel = ModelSetupViewModel(modelManager: manager) { _ in
+            throw TestDownloadError.failed
+        }
+
+        do {
+            try await viewModel.downloadSelectedModel()
+            XCTFail("Expected download failure.")
+        } catch {
+            XCTAssertEqual(error as? TestDownloadError, .failed)
+        }
+
+        XCTAssertFalse(viewModel.isDownloading)
+        XCTAssertFalse(viewModel.isReady)
+        XCTAssertTrue(viewModel.statusText.contains("Download failed"))
     }
 
     func testDefaultModelManifestUsesQwen17BGGUF() {
@@ -66,6 +108,15 @@ final class ModelManagerTests: XCTestCase {
         XCTAssertFalse(manager.isModelReady(ModelManager.defaultModel))
     }
 
+    func testReportsEmptyLocalModelAsNotReady() throws {
+        let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory)
+        try manager.ensureModelDirectoryExists()
+        FileManager.default.createFile(atPath: manager.localURL(for: ModelManager.defaultModel).path, contents: Data())
+
+        XCTAssertFalse(manager.isModelReady(ModelManager.defaultModel))
+    }
+
     func testLocalURLUsesModelsDirectoryAndModelFilename() {
         let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory)
@@ -93,4 +144,8 @@ final class ModelManagerTests: XCTestCase {
         let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         return ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory)
     }
+}
+
+private enum TestDownloadError: Error, Equatable {
+    case failed
 }

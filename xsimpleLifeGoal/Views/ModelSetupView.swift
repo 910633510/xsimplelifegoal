@@ -42,13 +42,25 @@ struct ModelSetupView: View {
                     .tint(AppTheme.accent)
 
                     Button {
-                        viewModel.statusText = "Download queued."
+                        Task {
+                            do {
+                                try await viewModel.downloadSelectedModel()
+                            } catch {
+                                // The view model owns user-facing download status.
+                            }
+                        }
                     } label: {
-                        Label("Download Model", systemImage: "square.and.arrow.down")
-                            .frame(maxWidth: .infinity)
+                        if viewModel.isDownloading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Label("Download Model", systemImage: "square.and.arrow.down")
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.accent)
+                    .disabled(viewModel.isDownloading)
 
                     Button {
                         viewModel.continueWithoutModel()

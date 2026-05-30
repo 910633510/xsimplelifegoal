@@ -20,7 +20,7 @@ struct GoalCreationView: View {
                 Section("Timeline") {
                     Toggle("Set completion date", isOn: $hasDeadline)
                     if hasDeadline {
-                        DatePicker("Deadline", selection: $deadline, displayedComponents: .date)
+                        DatePicker("Deadline", selection: $deadline, in: Date()..., displayedComponents: .date)
                     }
                 }
 

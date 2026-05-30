@@ -29,8 +29,6 @@ struct GoalCard: View {
     }
 
     private var todaySummary: String {
-        guard let plan = goal.dailyPlans.first else { return "No checklist yet" }
-        let completed = plan.items.filter(\.isCompleted).count
-        return "\(completed)/\(plan.items.count) items complete today"
+        goal.checklistSummary(on: Date(), calendar: .current)
     }
 }

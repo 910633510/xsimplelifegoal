@@ -18,6 +18,24 @@ final class GoalStoreTests: XCTestCase {
         XCTAssertEqual(store.goals[0].dailyPlans.count, 2)
     }
 
+    func testCreateGoalSavesInjectedSelectedModelID() async throws {
+        let repository = InMemoryGoalRepository()
+        let scheduler = GoalScheduler(calendar: calendar)
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(
+            repository: repository,
+            scheduler: scheduler,
+            planningEngine: engine,
+            selectedModelID: "qwen3-selected-local",
+            now: { Date(timeIntervalSince1970: 0) }
+        )
+
+        try await store.createGoal(description: "learn Spanish", targetDate: Date(timeIntervalSince1970: 0))
+
+        XCTAssertEqual(store.goals[0].selectedModelID, "qwen3-selected-local")
+        XCTAssertEqual(repository.goals[0].selectedModelID, "qwen3-selected-local")
+    }
+
     func testCreateGoalPassesDaysAvailableMatchingScheduledPlansToPlanner() async throws {
         let repository = InMemoryGoalRepository()
         let scheduler = GoalScheduler(calendar: calendar)
@@ -56,6 +74,26 @@ final class GoalStoreTests: XCTestCase {
 
         XCTAssertNil(store.errorMessage)
         XCTAssertEqual(store.goals.count, 1)
+    }
+
+    func testCreateGoalRejectsPastTargetDateBeforeGeneratingOrSaving() async throws {
+        let today = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let yesterday = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 28)))
+        let repository = InMemoryGoalRepository()
+        let generator = CountingTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#)
+        let engine = GoalPlanningEngine(generator: generator)
+        let store = GoalStore(repository: repository, scheduler: GoalScheduler(calendar: calendar), planningEngine: engine, now: { today })
+
+        do {
+            try await store.createGoal(description: "learn Spanish", targetDate: yesterday)
+            XCTFail("Expected past target date to be rejected.")
+        } catch {
+            XCTAssertEqual(error as? GoalStoreError, .targetDateInPast)
+        }
+
+        XCTAssertTrue(repository.goals.isEmpty)
+        let generateCallCount = await generator.callCount()
+        XCTAssertEqual(generateCallCount, 0)
     }
 
     func testTogglesChecklistItemCompletion() async throws {
@@ -161,22 +199,61 @@ final class GoalStoreTests: XCTestCase {
         XCTAssertTrue(store.goals[0].dailyPlans[1].items.contains { $0.text.hasPrefix("[catch-up ") })
     }
 
-    private func makeGoal(targetDate: Date = Date(timeIntervalSince1970: 0)) -> Goal {
+    func testReconcileMissedWorkRedistributesIncompletePriorDayItemsToFuturePlans() throws {
+        let may29 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let may30 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30)))
+        let may31 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 31)))
+        let goal = makeGoal(startDate: may29, targetDate: may31, templates: ["Review", "Speak"])
+        let repository = InMemoryGoalRepository(goals: [goal])
+        let scheduler = GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator())
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine, now: { may30 })
+
+        try store.reconcileMissedWork()
+
+        let updatedGoal = try XCTUnwrap(store.goals.first)
+        let todayPlan = try XCTUnwrap(updatedGoal.dailyPlan(on: may30, calendar: calendar))
+        let finalPlan = try XCTUnwrap(updatedGoal.dailyPlan(on: may31, calendar: calendar))
+        XCTAssertTrue(todayPlan.items.contains { $0.text.hasPrefix("[catch-up 2026-05-29]") })
+        XCTAssertTrue(finalPlan.items.contains { $0.text.hasPrefix("[catch-up 2026-05-29]") })
+    }
+
+    func testReconcileMissedWorkIsIdempotentForAlreadyRescaledPriorDays() throws {
+        let may30 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30)))
+        let may31 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 31)))
+        let may29 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let goal = makeGoal(startDate: may29, targetDate: may31, templates: ["Review", "Speak"])
+        let repository = InMemoryGoalRepository(goals: [goal])
+        let scheduler = GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator())
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine, now: { may30 })
+
+        try store.reconcileMissedWork()
+        let afterFirstReconcile = store.goals
+        try store.reconcileMissedWork()
+
+        XCTAssertEqual(store.goals, afterFirstReconcile)
+    }
+
+    private func makeGoal(
+        startDate: Date = Date(timeIntervalSince1970: 0),
+        targetDate: Date = Date(timeIntervalSince1970: 0),
+        templates: [String] = ["Review"]
+    ) -> Goal {
         let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
-        let start = Date(timeIntervalSince1970: 0)
         return Goal(
             id: goalID,
             title: "Learn Spanish",
             originalDescription: "learn Spanish",
-            createdDate: start,
+            createdDate: startDate,
             targetDate: targetDate,
             status: .active,
             selectedModelID: ModelManager.defaultModel.id,
             dailyPlans: GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator()).makeDailyPlans(
                 goalID: goalID,
-                startDate: start,
+                startDate: startDate,
                 targetDate: targetDate,
-                templates: ["Review"]
+                templates: templates
             )
         )
     }
@@ -233,6 +310,24 @@ private actor CapturingTextGenerator: TextGenerating {
 
     func capturedPrompt() -> String? {
         prompt
+    }
+}
+
+private actor CountingTextGenerator: TextGenerating {
+    let result: String
+    private var calls = 0
+
+    init(result: String) {
+        self.result = result
+    }
+
+    func generateText(prompt: String) async throws -> String {
+        calls += 1
+        return result
+    }
+
+    func callCount() -> Int {
+        calls
     }
 }
 

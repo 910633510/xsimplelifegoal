@@ -26,21 +26,54 @@ final class GoalDomainTests: XCTestCase {
         XCTAssertEqual(plan?.id, secondPlan.id)
     }
 
+    func testChecklistSummaryUsesPlanForRequestedDay() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let firstDay = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29, hour: 9)))
+        let secondDayMorning = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30, hour: 8)))
+        let secondDayEvening = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30, hour: 18)))
+        let firstPlan = makePlan(id: UUID(uuidString: "00000000-0000-0000-0000-000000000101")!, goalID: goalID, date: firstDay, items: [
+            makeItem(text: "Day one complete", isCompleted: true)
+        ])
+        let secondPlan = makePlan(id: UUID(uuidString: "00000000-0000-0000-0000-000000000102")!, goalID: goalID, date: secondDayMorning, items: [
+            makeItem(text: "Day two complete", isCompleted: true),
+            makeItem(text: "Day two remaining", isCompleted: false)
+        ])
+        let goal = Goal(
+            id: goalID,
+            title: "Build a habit",
+            originalDescription: "Build a habit",
+            createdDate: firstDay,
+            targetDate: secondDayMorning,
+            status: .active,
+            selectedModelID: ModelManager.defaultModel.id,
+            dailyPlans: [firstPlan, secondPlan]
+        )
+
+        XCTAssertEqual(goal.checklistSummary(on: secondDayEvening, calendar: calendar), "1/2 items complete today")
+    }
+
     private func makePlan(id: UUID, goalID: UUID, date: Date, text: String) -> DailyPlan {
+        makePlan(id: id, goalID: goalID, date: date, items: [makeItem(text: text, isCompleted: false)])
+    }
+
+    private func makePlan(id: UUID, goalID: UUID, date: Date, items: [ChecklistItem]) -> DailyPlan {
         DailyPlan(
             id: id,
             goalID: goalID,
             date: date,
-            items: [
-                ChecklistItem(
-                    id: UUID(),
-                    text: text,
-                    estimatedEffort: "15 minutes",
-                    isCompleted: false,
-                    completedDate: nil
-                )
-            ],
+            items: items,
             isRescaled: false
+        )
+    }
+
+    private func makeItem(text: String, isCompleted: Bool) -> ChecklistItem {
+        ChecklistItem(
+            id: UUID(),
+            text: text,
+            estimatedEffort: "15 minutes",
+            isCompleted: isCompleted,
+            completedDate: isCompleted ? Date(timeIntervalSince1970: 0) : nil
         )
     }
 }

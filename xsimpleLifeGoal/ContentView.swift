@@ -10,7 +10,11 @@ struct ContentView: View {
             if !setupViewModel.isReady && !setupViewModel.allowsDashboardWithoutReadyModel {
                 ModelSetupView(viewModel: setupViewModel)
             } else {
-                GoalStoreRootView(modelContext: modelContext)
+                GoalStoreRootView(
+                    modelContext: modelContext,
+                    selectedModelID: setupViewModel.selectedModel.id,
+                    selectedModelLocalURL: setupViewModel.selectedModelLocalURL
+                )
             }
         }
     }
@@ -18,6 +22,8 @@ struct ContentView: View {
 
 private struct GoalStoreRootView: View {
     let modelContext: ModelContext
+    let selectedModelID: String
+    let selectedModelLocalURL: URL
     @State private var store: GoalStore?
 
     var body: some View {
@@ -40,8 +46,19 @@ private struct GoalStoreRootView: View {
     private func initializeStoreIfNeeded() {
         guard store == nil else { return }
         let repository = SwiftDataGoalRepository(context: modelContext)
-        let planner = GoalPlanningEngine(generator: LocalLLMService())
-        store = GoalStore(repository: repository, scheduler: GoalScheduler(), planningEngine: planner)
+        let planner = GoalPlanningEngine(generator: LocalLLMService(modelURL: selectedModelLocalURL))
+        let initializedStore = GoalStore(
+            repository: repository,
+            scheduler: GoalScheduler(),
+            planningEngine: planner,
+            selectedModelID: selectedModelID
+        )
+        do {
+            try initializedStore.reconcileMissedWork()
+        } catch {
+            initializedStore.errorMessage = "Failed to reconcile missed work: \(error.localizedDescription)"
+        }
+        store = initializedStore
     }
 }
 

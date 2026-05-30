@@ -4,6 +4,7 @@ import Observation
 enum GoalStoreError: LocalizedError, Equatable {
     case goalNotFound
     case checklistItemNotFound
+    case targetDateInPast
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum GoalStoreError: LocalizedError, Equatable {
             "Goal not found."
         case .checklistItemNotFound:
             "Checklist item not found."
+        case .targetDateInPast:
+            "Target date cannot be before today."
         }
     }
 }
@@ -21,15 +24,23 @@ final class GoalStore {
     private let repository: GoalRepository
     private let scheduler: GoalScheduler
     private let planningEngine: GoalPlanningEngine
+    private let selectedModelID: String
     private let now: () -> Date
 
     private(set) var goals: [Goal] = []
     var errorMessage: String?
 
-    init(repository: GoalRepository, scheduler: GoalScheduler, planningEngine: GoalPlanningEngine, now: @escaping () -> Date = Date.init) {
+    init(
+        repository: GoalRepository,
+        scheduler: GoalScheduler,
+        planningEngine: GoalPlanningEngine,
+        selectedModelID: String = ModelManager.defaultModel.id,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.repository = repository
         self.scheduler = scheduler
         self.planningEngine = planningEngine
+        self.selectedModelID = selectedModelID
         self.now = now
         do {
             self.goals = try repository.fetchGoals()
@@ -41,6 +52,10 @@ final class GoalStore {
 
     func createGoal(description: String, targetDate: Date?) async throws {
         let start = now()
+        if let targetDate,
+           scheduler.calendar.startOfDay(for: targetDate) < scheduler.calendar.startOfDay(for: start) {
+            throw GoalStoreError.targetDateInPast
+        }
         let resolvedTarget = scheduler.resolveTargetDate(startDate: start, requestedTargetDate: targetDate)
         let days = scheduler.daysAvailable(from: start, to: resolvedTarget)
         let generated = try await planningEngine.generatePlan(description: description, daysAvailable: days)
@@ -53,7 +68,7 @@ final class GoalStore {
             createdDate: start,
             targetDate: resolvedTarget,
             status: .active,
-            selectedModelID: ModelManager.defaultModel.id,
+            selectedModelID: selectedModelID,
             dailyPlans: plans
         )
         try repository.save(goal)
@@ -90,6 +105,31 @@ final class GoalStore {
             targetDate: updatedGoal.targetDate
         )
         try repository.save(updatedGoal)
+        try refreshGoalsAfterSuccessfulChange()
+    }
+
+    func reconcileMissedWork() throws {
+        let today = scheduler.calendar.startOfDay(for: now())
+        var changedGoals: [Goal] = []
+
+        for goal in goals where goal.status == .active {
+            var updatedGoal = goal
+            for plan in goal.dailyPlans where scheduler.calendar.startOfDay(for: plan.date) < today && plan.items.contains(where: { !$0.isCompleted }) {
+                updatedGoal.dailyPlans = scheduler.rescaleAfterMissedDay(
+                    plans: updatedGoal.dailyPlans,
+                    missedDate: plan.date,
+                    targetDate: updatedGoal.targetDate
+                )
+            }
+            if updatedGoal != goal {
+                changedGoals.append(updatedGoal)
+            }
+        }
+
+        guard !changedGoals.isEmpty else { return }
+        for goal in changedGoals {
+            try repository.save(goal)
+        }
         try refreshGoalsAfterSuccessfulChange()
     }
 

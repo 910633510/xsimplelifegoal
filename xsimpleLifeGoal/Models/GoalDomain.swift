@@ -32,6 +32,12 @@ struct Goal: Identifiable, Codable, Equatable {
     func dailyPlan(on date: Date, calendar: Calendar) -> DailyPlan? {
         dailyPlans.first { calendar.isDate($0.date, inSameDayAs: date) }
     }
+
+    func checklistSummary(on date: Date, calendar: Calendar) -> String {
+        guard let plan = dailyPlan(on: date, calendar: calendar) else { return "No checklist yet" }
+        let completed = plan.items.filter(\.isCompleted).count
+        return "\(completed)/\(plan.items.count) items complete today"
+    }
 }
 
 struct DailyPlan: Identifiable, Codable, Equatable {
