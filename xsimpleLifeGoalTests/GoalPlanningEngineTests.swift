@@ -37,7 +37,10 @@ final class GoalPlanningEngineTests: XCTestCase {
         }
     }
 
-    func testLocalLLMServiceReportsRuntimeUnavailableWithoutFramework() async {
+    func testLocalLLMServiceReportsRuntimeUnavailableWithoutFramework() async throws {
+        #if canImport(llama)
+        throw XCTSkip("llama runtime is available in this environment.")
+        #else
         let service = LocalLLMService()
 
         do {
@@ -48,6 +51,27 @@ final class GoalPlanningEngineTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
+        #endif
+    }
+
+    func testLocalLLMServiceReportsMissingModelFileWhenRuntimeAvailable() async throws {
+        #if canImport(llama)
+        let missingModelURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("gguf")
+        let service = LocalLLMService(modelURL: missingModelURL)
+
+        do {
+            _ = try await service.generateText(prompt: "Return JSON")
+            XCTFail("Expected missing model file error")
+        } catch LocalLLMError.modelFileMissing {
+            XCTAssertTrue(true)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        #else
+        throw XCTSkip("llama runtime is not available in this environment.")
+        #endif
     }
 }
 

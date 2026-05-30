@@ -29,7 +29,7 @@ private struct LlamaTextRuntime {
     let modelURL: URL?
 
     func generate(prompt: String) async throws -> String {
-        guard modelURL != nil else {
+        guard let modelURL, FileManager.default.fileExists(atPath: modelURL.path) else {
             throw LocalLLMError.modelFileMissing
         }
         throw LocalLLMError.generationFailed
