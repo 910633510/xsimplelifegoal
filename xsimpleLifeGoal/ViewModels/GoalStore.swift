@@ -17,7 +17,12 @@ final class GoalStore {
         self.scheduler = scheduler
         self.planningEngine = planningEngine
         self.now = now
-        self.goals = (try? repository.fetchGoals()) ?? []
+        do {
+            self.goals = try repository.fetchGoals()
+        } catch {
+            self.goals = []
+            self.errorMessage = "Failed to load goals: \(error.localizedDescription)"
+        }
     }
 
     func createGoal(description: String, targetDate: Date?) async throws {
@@ -43,21 +48,25 @@ final class GoalStore {
 
     func setChecklistItem(goalID: UUID, itemID: UUID, isCompleted: Bool) throws {
         guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else { return }
-        for planIndex in goals[goalIndex].dailyPlans.indices {
-            guard let itemIndex = goals[goalIndex].dailyPlans[planIndex].items.firstIndex(where: { $0.id == itemID }) else { continue }
-            goals[goalIndex].dailyPlans[planIndex].items[itemIndex].isCompleted = isCompleted
-            goals[goalIndex].dailyPlans[planIndex].items[itemIndex].completedDate = isCompleted ? now() : nil
+        var updatedGoal = goals[goalIndex]
+        for planIndex in updatedGoal.dailyPlans.indices {
+            guard let itemIndex = updatedGoal.dailyPlans[planIndex].items.firstIndex(where: { $0.id == itemID }) else { continue }
+            updatedGoal.dailyPlans[planIndex].items[itemIndex].isCompleted = isCompleted
+            updatedGoal.dailyPlans[planIndex].items[itemIndex].completedDate = isCompleted ? now() : nil
         }
-        try repository.save(goals[goalIndex])
+        try repository.save(updatedGoal)
+        goals = try repository.fetchGoals()
     }
 
     func rescaleMissedDay(goalID: UUID, missedDate: Date) throws {
         guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else { return }
-        goals[goalIndex].dailyPlans = scheduler.rescaleAfterMissedDay(
-            plans: goals[goalIndex].dailyPlans,
+        var updatedGoal = goals[goalIndex]
+        updatedGoal.dailyPlans = scheduler.rescaleAfterMissedDay(
+            plans: updatedGoal.dailyPlans,
             missedDate: missedDate,
-            targetDate: goals[goalIndex].targetDate
+            targetDate: updatedGoal.targetDate
         )
-        try repository.save(goals[goalIndex])
+        try repository.save(updatedGoal)
+        goals = try repository.fetchGoals()
     }
 }
