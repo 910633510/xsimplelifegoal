@@ -49,6 +49,15 @@ struct ModelSetupView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(AppTheme.accent)
+
+                    Button {
+                        viewModel.continueWithoutModel()
+                    } label: {
+                        Label("Continue Without Model", systemImage: "arrow.forward")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(AppTheme.accent)
                 }
             }
             .padding()

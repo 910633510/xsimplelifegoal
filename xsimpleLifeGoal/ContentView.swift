@@ -7,7 +7,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if !setupViewModel.isReady {
+            if !setupViewModel.isReady && !setupViewModel.allowsDashboardWithoutReadyModel {
                 ModelSetupView(viewModel: setupViewModel)
             } else {
                 GoalStoreRootView(modelContext: modelContext)

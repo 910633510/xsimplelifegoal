@@ -4,11 +4,37 @@ import XCTest
 final class ModelManagerTests: XCTestCase {
     @MainActor
     func testModelSetupViewModelStartsWithDefaultModel() {
-        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: FileManager.default.temporaryDirectory)
+        let manager = makeTemporaryModelManager()
         let viewModel = ModelSetupViewModel(modelManager: manager)
 
         XCTAssertEqual(viewModel.selectedModel.id, "qwen3-1.7b-gguf")
         XCTAssertFalse(viewModel.isReady)
+        XCTAssertEqual(viewModel.statusText, "Model download required")
+    }
+
+    @MainActor
+    func testModelSetupViewModelUsesSmallModelWhenRequested() {
+        let manager = makeTemporaryModelManager()
+        let viewModel = ModelSetupViewModel(modelManager: manager)
+
+        viewModel.useSmallModel()
+
+        XCTAssertEqual(viewModel.selectedModel.id, "qwen3-0.6b-gguf")
+        XCTAssertFalse(viewModel.isReady)
+        XCTAssertEqual(viewModel.statusText, "Small model download required")
+    }
+
+    @MainActor
+    func testModelSetupViewModelCanContinueWithoutReadyModel() {
+        let manager = makeTemporaryModelManager()
+        let viewModel = ModelSetupViewModel(modelManager: manager)
+
+        XCTAssertFalse(viewModel.allowsDashboardWithoutReadyModel)
+
+        viewModel.continueWithoutModel()
+
+        XCTAssertTrue(viewModel.allowsDashboardWithoutReadyModel)
+        XCTAssertEqual(viewModel.statusText, "Using fallback planner until a model is ready.")
     }
 
     func testDefaultModelManifestUsesQwen17BGGUF() {
@@ -61,5 +87,10 @@ final class ModelManagerTests: XCTestCase {
         var isDirectory: ObjCBool = false
         XCTAssertTrue(FileManager.default.fileExists(atPath: modelsDirectory.path, isDirectory: &isDirectory))
         XCTAssertTrue(isDirectory.boolValue)
+    }
+
+    private func makeTemporaryModelManager() -> ModelManager {
+        let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        return ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory)
     }
 }
