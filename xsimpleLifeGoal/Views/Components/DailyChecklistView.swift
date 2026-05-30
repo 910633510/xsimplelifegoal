@@ -27,6 +27,7 @@ struct DailyChecklistView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityValue(item.isCompleted ? "Completed" : "Not completed")
                 }
             }
         }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct GoalDetailView: View {
+    @Environment(\.calendar) private var calendar
     @Bindable var store: GoalStore
     let goalID: UUID
     @State private var errorMessage: String?
@@ -21,7 +22,7 @@ struct GoalDetailView: View {
                         .background(AppTheme.card)
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
 
-                    if let plan = goal.dailyPlans.first {
+                    if let plan = goal.dailyPlan(on: Date(), calendar: calendar) {
                         DailyChecklistView(plan: plan) { itemID, isCompleted in
                             setChecklistItem(itemID: itemID, isCompleted: isCompleted)
                         }

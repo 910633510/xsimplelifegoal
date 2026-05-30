@@ -28,6 +28,10 @@ struct Goal: Identifiable, Codable, Equatable {
         guard !items.isEmpty else { return 0 }
         return Double(items.filter(\.isCompleted).count) / Double(items.count)
     }
+
+    func dailyPlan(on date: Date, calendar: Calendar) -> DailyPlan? {
+        dailyPlans.first { calendar.isDate($0.date, inSameDayAs: date) }
+    }
 }
 
 struct DailyPlan: Identifiable, Codable, Equatable {

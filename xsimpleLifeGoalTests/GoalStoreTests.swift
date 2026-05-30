@@ -95,6 +95,29 @@ final class GoalStoreTests: XCTestCase {
         XCTAssertNil(store.goals[0].dailyPlans[0].items[0].completedDate)
     }
 
+    func testSetChecklistItemThrowsGoalNotFoundWhenGoalIsMissing() throws {
+        let repository = InMemoryGoalRepository()
+        let scheduler = GoalScheduler(calendar: calendar)
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine)
+
+        XCTAssertThrowsError(try store.setChecklistItem(goalID: UUID(), itemID: UUID(), isCompleted: true)) { error in
+            XCTAssertEqual(error as? GoalStoreError, .goalNotFound)
+        }
+    }
+
+    func testSetChecklistItemThrowsChecklistItemNotFoundWhenItemIsMissing() throws {
+        let goal = makeGoal()
+        let repository = InMemoryGoalRepository(goals: [goal])
+        let scheduler = GoalScheduler(calendar: calendar)
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine)
+
+        XCTAssertThrowsError(try store.setChecklistItem(goalID: goal.id, itemID: UUID(), isCompleted: true)) { error in
+            XCTAssertEqual(error as? GoalStoreError, .checklistItemNotFound)
+        }
+    }
+
     func testRescaleSaveFailureLeavesStoreGoalsUnchanged() throws {
         let goal = makeGoal(targetDate: Date(timeIntervalSince1970: 86_400))
         let repository = InMemoryGoalRepository(goals: [goal])
@@ -105,6 +128,17 @@ final class GoalStoreTests: XCTestCase {
 
         XCTAssertThrowsError(try store.rescaleMissedDay(goalID: goal.id, missedDate: goal.createdDate))
         XCTAssertEqual(store.goals[0].dailyPlans, goal.dailyPlans)
+    }
+
+    func testRescaleMissedDayThrowsGoalNotFoundWhenGoalIsMissing() throws {
+        let repository = InMemoryGoalRepository()
+        let scheduler = GoalScheduler(calendar: calendar)
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine)
+
+        XCTAssertThrowsError(try store.rescaleMissedDay(goalID: UUID(), missedDate: Date(timeIntervalSince1970: 0))) { error in
+            XCTAssertEqual(error as? GoalStoreError, .goalNotFound)
+        }
     }
 
     func testRescaleMissedDayPersistsAndRefreshesStoreGoals() throws {

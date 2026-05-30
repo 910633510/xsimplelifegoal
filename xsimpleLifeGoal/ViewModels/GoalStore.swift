@@ -1,6 +1,20 @@
 import Foundation
 import Observation
 
+enum GoalStoreError: LocalizedError, Equatable {
+    case goalNotFound
+    case checklistItemNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .goalNotFound:
+            "Goal not found."
+        case .checklistItemNotFound:
+            "Checklist item not found."
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class GoalStore {
@@ -47,7 +61,9 @@ final class GoalStore {
     }
 
     func setChecklistItem(goalID: UUID, itemID: UUID, isCompleted: Bool) throws {
-        guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else { return }
+        guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else {
+            throw GoalStoreError.goalNotFound
+        }
         var updatedGoal = goals[goalIndex]
         var didUpdate = false
         for planIndex in updatedGoal.dailyPlans.indices {
@@ -56,13 +72,17 @@ final class GoalStore {
             updatedGoal.dailyPlans[planIndex].items[itemIndex].completedDate = isCompleted ? now() : nil
             didUpdate = true
         }
-        guard didUpdate else { return }
+        guard didUpdate else {
+            throw GoalStoreError.checklistItemNotFound
+        }
         try repository.save(updatedGoal)
         try refreshGoalsAfterSuccessfulChange()
     }
 
     func rescaleMissedDay(goalID: UUID, missedDate: Date) throws {
-        guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else { return }
+        guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else {
+            throw GoalStoreError.goalNotFound
+        }
         var updatedGoal = goals[goalIndex]
         updatedGoal.dailyPlans = scheduler.rescaleAfterMissedDay(
             plans: updatedGoal.dailyPlans,
