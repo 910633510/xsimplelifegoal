@@ -7,6 +7,7 @@ struct GoalCreationView: View {
     @State private var hasDeadline = false
     @State private var deadline = Date().addingTimeInterval(60 * 60 * 24 * 365)
     @State private var isGenerating = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -40,13 +41,35 @@ struct GoalCreationView: View {
             .toolbar {
                 Button("Cancel") { dismiss() }
             }
+            .alert("Goal Creation Failed", isPresented: isShowingError) {
+                Button("OK", role: .cancel) {
+                    errorMessage = nil
+                }
+            } message: {
+                Text(errorMessage ?? "Please try again.")
+            }
         }
     }
 
     private func createGoal() async {
         isGenerating = true
         defer { isGenerating = false }
-        try? await store.createGoal(description: description, targetDate: hasDeadline ? deadline : nil)
-        dismiss()
+        do {
+            try await store.createGoal(description: description, targetDate: hasDeadline ? deadline : nil)
+            dismiss()
+        } catch {
+            errorMessage = "Unable to create this goal. \(error.localizedDescription)"
+        }
+    }
+
+    private var isShowingError: Binding<Bool> {
+        Binding(
+            get: { errorMessage != nil },
+            set: { isPresented in
+                if !isPresented {
+                    errorMessage = nil
+                }
+            }
+        )
     }
 }
