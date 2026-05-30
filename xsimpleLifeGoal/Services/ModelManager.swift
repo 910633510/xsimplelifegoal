@@ -1,17 +1,22 @@
 import Foundation
 
 enum ModelDownloadError: LocalizedError, Equatable {
+    case unsuccessfulResponse(statusCode: Int)
     case invalidDownloadedFile
 
     var errorDescription: String? {
         switch self {
+        case let .unsuccessfulResponse(statusCode):
+            "Model download failed with HTTP status \(statusCode)."
         case .invalidDownloadedFile:
-            "Downloaded model file is empty."
+            "Downloaded model file is invalid."
         }
     }
 }
 
 struct ModelManager {
+    typealias DownloadFile = @MainActor (URL) async throws -> (URL, URLResponse)
+
     static let defaultModel = ModelMetadata(
         id: "qwen3-1.7b-gguf",
         displayName: "Qwen3 1.7B GGUF",
@@ -32,13 +37,17 @@ struct ModelManager {
 
     private let fileManager: FileManager
     private let applicationSupportDirectory: URL
+    private let downloadFile: DownloadFile
 
-    init(fileManager: FileManager = .default, applicationSupportDirectory: URL? = nil) {
+    init(fileManager: FileManager = .default, applicationSupportDirectory: URL? = nil, downloadFile: DownloadFile? = nil) {
         self.fileManager = fileManager
         if let applicationSupportDirectory {
             self.applicationSupportDirectory = applicationSupportDirectory
         } else {
             self.applicationSupportDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        }
+        self.downloadFile = downloadFile ?? { url in
+            try await URLSession.shared.download(from: url)
         }
     }
 
@@ -49,13 +58,7 @@ struct ModelManager {
     }
 
     func isModelReady(_ model: ModelMetadata) -> Bool {
-        let url = localURL(for: model)
-        guard fileManager.fileExists(atPath: url.path) else { return false }
-        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path),
-              let size = attributes[.size] as? NSNumber else {
-            return false
-        }
-        return size.int64Value > 0
+        isValidDownloadedModel(at: localURL(for: model))
     }
 
     func ensureModelDirectoryExists() throws {
@@ -68,15 +71,38 @@ struct ModelManager {
     @MainActor
     func download(_ model: ModelMetadata) async throws {
         try ensureModelDirectoryExists()
-        let (temporaryURL, _) = try await URLSession.shared.download(from: model.remoteURL)
+        let (temporaryURL, response) = try await downloadFile(model.remoteURL)
+        do {
+            try validate(response: response)
+            guard isValidDownloadedModel(at: temporaryURL) else {
+                throw ModelDownloadError.invalidDownloadedFile
+            }
+        } catch {
+            try? fileManager.removeItem(at: temporaryURL)
+            throw error
+        }
+
         let destinationURL = localURL(for: model)
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }
         try fileManager.moveItem(at: temporaryURL, to: destinationURL)
-        guard isModelReady(model) else {
-            try? fileManager.removeItem(at: destinationURL)
-            throw ModelDownloadError.invalidDownloadedFile
+    }
+
+    private func validate(response: URLResponse) throws {
+        guard let httpResponse = response as? HTTPURLResponse else { return }
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw ModelDownloadError.unsuccessfulResponse(statusCode: httpResponse.statusCode)
         }
+    }
+
+    private func isValidDownloadedModel(at url: URL) -> Bool {
+        guard fileManager.fileExists(atPath: url.path),
+              let fileHandle = try? FileHandle(forReadingFrom: url),
+              let header = try? fileHandle.read(upToCount: 4) else {
+            return false
+        }
+        try? fileHandle.close()
+        return header == Data("GGUF".utf8)
     }
 }

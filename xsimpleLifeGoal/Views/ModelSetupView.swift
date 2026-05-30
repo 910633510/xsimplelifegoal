@@ -40,6 +40,7 @@ struct ModelSetupView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(AppTheme.accent)
+                    .disabled(viewModel.isDownloading)
 
                     Button {
                         Task {
@@ -70,6 +71,7 @@ struct ModelSetupView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(AppTheme.accent)
+                    .disabled(viewModel.isDownloading)
                 }
             }
             .padding()

@@ -46,11 +46,25 @@ final class ModelManagerTests: XCTestCase {
     }
 
     @MainActor
+    func testModelSetupViewModelIgnoresSelectionAndRoutingChangesWhileDownloading() {
+        let manager = makeTemporaryModelManager()
+        let viewModel = ModelSetupViewModel(modelManager: manager)
+        viewModel.isDownloading = true
+
+        viewModel.useSmallModel()
+        viewModel.continueWithoutModel()
+
+        XCTAssertEqual(viewModel.selectedModel, ModelManager.defaultModel)
+        XCTAssertFalse(viewModel.allowsDashboardWithoutReadyModel)
+        XCTAssertEqual(viewModel.statusText, "Model download required")
+    }
+
+    @MainActor
     func testDownloadSelectedModelMarksReadyAfterSuccessfulDownload() async throws {
         let manager = makeTemporaryModelManager()
         let viewModel = ModelSetupViewModel(modelManager: manager) { model in
             try manager.ensureModelDirectoryExists()
-            try Data("model".utf8).write(to: manager.localURL(for: model))
+            try Data("GGUF test model".utf8).write(to: manager.localURL(for: model))
         }
 
         try await viewModel.downloadSelectedModel()
@@ -113,6 +127,67 @@ final class ModelManagerTests: XCTestCase {
         let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory)
         try manager.ensureModelDirectoryExists()
         FileManager.default.createFile(atPath: manager.localURL(for: ModelManager.defaultModel).path, contents: Data())
+
+        XCTAssertFalse(manager.isModelReady(ModelManager.defaultModel))
+    }
+
+    func testReportsNonGGUFLocalModelAsNotReady() throws {
+        let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory)
+        try manager.ensureModelDirectoryExists()
+        try Data("not a model".utf8).write(to: manager.localURL(for: ModelManager.defaultModel))
+
+        XCTAssertFalse(manager.isModelReady(ModelManager.defaultModel))
+    }
+
+    @MainActor
+    func testDownloadRejectsNon2xxHTTPResponseWithoutMarkingModelReady() async throws {
+        let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let temporaryDownloadURL = tempDirectory.appending(path: "download.gguf")
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        try Data("GGUF test model".utf8).write(to: temporaryDownloadURL)
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory) { url in
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 503,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (temporaryDownloadURL, response)
+        }
+
+        do {
+            try await manager.download(ModelManager.defaultModel)
+            XCTFail("Expected non-2xx response to be rejected.")
+        } catch {
+            XCTAssertEqual(error as? ModelDownloadError, .unsuccessfulResponse(statusCode: 503))
+        }
+
+        XCTAssertFalse(manager.isModelReady(ModelManager.defaultModel))
+    }
+
+    @MainActor
+    func testDownloadRejectsNonGGUFContentWithoutMarkingModelReady() async throws {
+        let tempDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let temporaryDownloadURL = tempDirectory.appending(path: "download.gguf")
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        try Data("not a model".utf8).write(to: temporaryDownloadURL)
+        let manager = ModelManager(fileManager: .default, applicationSupportDirectory: tempDirectory) { url in
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (temporaryDownloadURL, response)
+        }
+
+        do {
+            try await manager.download(ModelManager.defaultModel)
+            XCTFail("Expected non-GGUF content to be rejected.")
+        } catch {
+            XCTAssertEqual(error as? ModelDownloadError, .invalidDownloadedFile)
+        }
 
         XCTAssertFalse(manager.isModelReady(ModelManager.defaultModel))
     }

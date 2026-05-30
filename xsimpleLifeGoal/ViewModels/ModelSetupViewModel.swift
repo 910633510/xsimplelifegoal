@@ -33,23 +33,26 @@ final class ModelSetupViewModel {
     }
 
     func useSmallModel() {
+        guard !isDownloading else { return }
         selectedModel = ModelManager.smallFallbackModel
         isReady = modelManager.isModelReady(selectedModel)
         statusText = isReady ? "Model ready" : "Small model download required"
     }
 
     func continueWithoutModel() {
+        guard !isDownloading else { return }
         allowsDashboardWithoutReadyModel = true
         statusText = "Using fallback planner until a model is ready."
     }
 
     func downloadSelectedModel() async throws {
+        let model = selectedModel
         isDownloading = true
         isReady = false
-        statusText = "Downloading \(selectedModel.displayName)..."
+        statusText = "Downloading \(model.displayName)..."
         do {
-            try await downloadSelectedModelAction(selectedModel)
-            guard modelManager.isModelReady(selectedModel) else {
+            try await downloadSelectedModelAction(model)
+            guard modelManager.isModelReady(model) else {
                 throw ModelDownloadError.invalidDownloadedFile
             }
             isReady = true
