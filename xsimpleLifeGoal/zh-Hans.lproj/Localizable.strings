@@ -1,0 +1,86 @@
+"common.cancel" = "取消";
+"common.ok" = "好";
+"common.tryAgain" = "请再试一次。";
+
+"dashboard.title" = "小目标";
+"dashboard.greeting" = "今天";
+"dashboard.subtitle" = "把大目标拆成每天能完成的一小步。";
+"dashboard.empty.title" = "还没有目标";
+"dashboard.empty.message" = "添加一个目标，让规划器把它拆成每天的行动。";
+"dashboard.empty.addGoal" = "添加目标";
+"dashboard.newGoal.accessibility" = "新建目标";
+
+"goalCard.today" = "今日";
+"goal.checklist.empty" = "还没有清单";
+"goal.checklist.summary" = "今天完成 %d/%d 项";
+"goal.checklist.summary.empty" = "今天没有安排任务";
+
+"goalCreation.title" = "新目标";
+"goalCreation.taskTitle" = "任务";
+"goalCreation.taskPrompt" = "写下你想完成的事";
+"goalCreation.taskHint" = "例如：练习日常西班牙语、准备马拉松、做一个小应用。";
+"goalCreation.timelineTitle" = "时间";
+"goalCreation.timelineHint" = "不设置日期时，默认按一年规划。";
+"goalCreation.setCompletionDate" = "设置完成日期";
+"goalCreation.deadline" = "截止日期";
+"goalCreation.generateButton" = "生成每日计划";
+"goalCreation.generatingButton" = "正在生成";
+"goalCreation.alertTitle" = "目标创建失败";
+"goalCreation.error.create" = "无法创建这个目标。%@";
+
+"goalDetail.defaultTitle" = "目标";
+"goalDetail.notFound" = "没有找到目标";
+"goalDetail.noWorkScheduled" = "%@ 没有安排任务";
+"goalDetail.rescaleButton" = "重新分配未完成任务";
+"goalDetail.alertTitle" = "目标更新失败";
+"goalDetail.error.updateChecklist" = "无法更新这个清单项。%@";
+"goalDetail.error.rescale" = "无法重新分配这个目标。%@";
+
+"dailyChecklist.defaultTitle" = "今天";
+"dailyChecklist.completed.accessibility" = "已完成";
+"dailyChecklist.notCompleted.accessibility" = "未完成";
+
+"progress.title" = "进度";
+"progress.complete" = "已完成 %d%%";
+
+"calendar.previousMonth.accessibility" = "上个月";
+"calendar.nextMonth.accessibility" = "下个月";
+"calendar.day.noWork" = "%@，没有安排任务";
+"calendar.day.notStarted" = "%@，尚未开始";
+"calendar.day.partial" = "%@，部分完成";
+"calendar.day.complete" = "%@，已完成";
+"calendar.day.rescaled" = "%@，已重新分配";
+
+"model.default.displayName" = "目标规划 AI";
+"model.lite.displayName" = "目标规划 AI 轻量版";
+"modelSetup.title" = "离线模型";
+"modelSetup.subtitle" = "下载一个在 iPhone 上运行的私人规划助手。";
+"modelSetup.modelLabel" = "当前模型";
+"modelSetup.downloadProgress.accessibility" = "下载进度";
+"modelSetup.useSmallerModel" = "使用轻量模型";
+"modelSetup.downloading" = "正在下载";
+"modelSetup.downloadModel" = "下载模型";
+"modelSetup.continueWithoutModel" = "暂不下载，继续使用";
+"modelSetup.status.ready" = "模型已就绪";
+"modelSetup.status.downloadRequired" = "需要下载模型";
+"modelSetup.status.smallDownloadRequired" = "需要下载轻量模型";
+"modelSetup.status.fallbackPlanner" = "模型就绪前，将使用备用规划器。";
+"modelSetup.status.downloading" = "正在下载 %@...";
+"modelSetup.status.downloadFailed" = "下载失败：%@";
+
+"planning.fallback.title.empty" = "新目标";
+"planning.fallback.item.focus" = "专注 20 分钟推进：%@";
+"planning.fallback.item.record" = "记录今天完成的一个具体进展";
+"planning.fallback.item.next" = "选出明天最小的下一步行动";
+
+"scheduler.defaultTemplate" = "专注推进这个目标";
+"scheduler.effort.small" = "小";
+
+"goalStore.error.goalNotFound" = "没有找到目标。";
+"goalStore.error.checklistItemNotFound" = "没有找到清单项。";
+"goalStore.error.targetDateInPast" = "截止日期不能早于今天。";
+"goalStore.error.loadGoals" = "加载目标失败：%@";
+"goalStore.error.reconcile" = "同步未完成任务失败：%@";
+
+"modelDownload.error.httpStatus" = "模型下载失败，HTTP 状态码为 %d。";
+"modelDownload.error.invalidFile" = "下载的模型文件无效。";

@@ -16,12 +16,39 @@ final class GoalPlanningEngineTests: XCTestCase {
     }
 
     func testInvalidModelOutputUsesDeterministicFallback() async throws {
-        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: "not json"))
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: "not json"), locale: Locale(identifier: "en"))
 
         let plan = try await engine.generatePlan(description: "prepare for a marathon", daysAvailable: 120)
 
         XCTAssertEqual(plan.title, "Prepare For A Marathon")
         XCTAssertEqual(plan.dailyChecklist.count, 3)
+        XCTAssertTrue(plan.usedFallback)
+    }
+
+    func testSimplifiedChineseLocalePromptRequestsSimplifiedChineseJSON() async throws {
+        let generator = CapturingTextGenerator(result: #"{"title":"学习西班牙语","dailyChecklist":["复习 15 个短语","开口练习 5 分钟","记录一句新表达"]}"#)
+        let engine = GoalPlanningEngine(generator: generator, locale: Locale(identifier: "zh-Hans"))
+
+        _ = try await engine.generatePlan(description: "学习日常西班牙语", daysAvailable: 30)
+
+        let capturedPrompt = await generator.capturedPrompt()
+        let prompt = try XCTUnwrap(capturedPrompt)
+        XCTAssertTrue(prompt.contains("请使用简体中文"))
+        XCTAssertTrue(prompt.contains("可直接解析的 JSON"))
+        XCTAssertTrue(prompt.contains("可检查"))
+    }
+
+    func testSimplifiedChineseLocaleUsesChineseFallbackWhenModelOutputIsInvalid() async throws {
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: "not json"), locale: Locale(identifier: "zh-Hans"))
+
+        let plan = try await engine.generatePlan(description: "准备马拉松", daysAvailable: 120)
+
+        XCTAssertEqual(plan.title, "准备马拉松")
+        XCTAssertEqual(plan.dailyChecklist, [
+            "专注 20 分钟推进：准备马拉松",
+            "记录今天完成的一个具体进展",
+            "选出明天最小的下一步行动"
+        ])
         XCTAssertTrue(plan.usedFallback)
     }
 
@@ -86,5 +113,23 @@ private struct FixtureTextGenerator: TextGenerating {
 private struct CancellingTextGenerator: TextGenerating {
     func generateText(prompt: String) async throws -> String {
         throw CancellationError()
+    }
+}
+
+private actor CapturingTextGenerator: TextGenerating {
+    let result: String
+    private var prompt: String?
+
+    init(result: String) {
+        self.result = result
+    }
+
+    func generateText(prompt: String) async throws -> String {
+        self.prompt = prompt
+        return result
+    }
+
+    func capturedPrompt() -> String? {
+        prompt
     }
 }

@@ -18,14 +18,14 @@ struct GoalScheduler {
 
     func makeDailyPlans(goalID: UUID, startDate: Date, targetDate: Date, templates: [String]) -> [DailyPlan] {
         let dates = inclusiveDates(from: startDate, through: targetDate)
-        let normalizedTemplates = templates.isEmpty ? ["Spend focused time on this goal"] : templates
+        let normalizedTemplates = templates.isEmpty ? [AppStrings.string("scheduler.defaultTemplate")] : templates
         return dates.map { date in
             DailyPlan(
                 id: makeID(),
                 goalID: goalID,
                 date: date,
                 items: normalizedTemplates.prefix(3).map { text in
-                    ChecklistItem(id: makeID(), text: text, estimatedEffort: "Small", isCompleted: false, completedDate: nil)
+                    ChecklistItem(id: makeID(), text: text, estimatedEffort: AppStrings.string("scheduler.effort.small"), isCompleted: false, completedDate: nil)
                 },
                 isRescaled: false
             )

@@ -7,9 +7,9 @@ enum ModelDownloadError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case let .unsuccessfulResponse(statusCode):
-            "Model download failed with HTTP status \(statusCode)."
+            AppStrings.format("modelDownload.error.httpStatus", arguments: [statusCode])
         case .invalidDownloadedFile:
-            "Downloaded model file is invalid."
+            AppStrings.string("modelDownload.error.invalidFile")
         }
     }
 }

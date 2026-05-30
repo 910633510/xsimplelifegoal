@@ -9,11 +9,11 @@ enum GoalStoreError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .goalNotFound:
-            "Goal not found."
+            AppStrings.string("goalStore.error.goalNotFound")
         case .checklistItemNotFound:
-            "Checklist item not found."
+            AppStrings.string("goalStore.error.checklistItemNotFound")
         case .targetDateInPast:
-            "Target date cannot be before today."
+            AppStrings.string("goalStore.error.targetDateInPast")
         }
     }
 }
@@ -46,7 +46,7 @@ final class GoalStore {
             self.goals = try repository.fetchGoals()
         } catch {
             self.goals = []
-            self.errorMessage = "Failed to load goals: \(error.localizedDescription)"
+            self.errorMessage = AppStrings.format("goalStore.error.loadGoals", arguments: [error.localizedDescription])
         }
     }
 

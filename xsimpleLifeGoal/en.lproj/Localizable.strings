@@ -1,0 +1,86 @@
+"common.cancel" = "Cancel";
+"common.ok" = "OK";
+"common.tryAgain" = "Please try again.";
+
+"dashboard.title" = "Life Goals";
+"dashboard.greeting" = "Today";
+"dashboard.subtitle" = "Keep the next step small and steady.";
+"dashboard.empty.title" = "No goals yet";
+"dashboard.empty.message" = "Add one goal and let the planner shape it into daily work.";
+"dashboard.empty.addGoal" = "Add Goal";
+"dashboard.newGoal.accessibility" = "New Goal";
+
+"goalCard.today" = "Today";
+"goal.checklist.empty" = "No checklist yet";
+"goal.checklist.summary" = "%d/%d items complete today";
+"goal.checklist.summary.empty" = "No work scheduled today";
+
+"goalCreation.title" = "New Goal";
+"goalCreation.taskTitle" = "Task";
+"goalCreation.taskPrompt" = "Describe what you want to accomplish";
+"goalCreation.taskHint" = "Example: learn conversational Spanish, prepare for a marathon, ship a small app.";
+"goalCreation.timelineTitle" = "Timeline";
+"goalCreation.timelineHint" = "If you skip this, the app will plan for one year.";
+"goalCreation.setCompletionDate" = "Set completion date";
+"goalCreation.deadline" = "Deadline";
+"goalCreation.generateButton" = "Generate Daily Plan";
+"goalCreation.generatingButton" = "Generating";
+"goalCreation.alertTitle" = "Goal Creation Failed";
+"goalCreation.error.create" = "Unable to create this goal. %@";
+
+"goalDetail.defaultTitle" = "Goal";
+"goalDetail.notFound" = "Goal Not Found";
+"goalDetail.noWorkScheduled" = "No work scheduled for %@";
+"goalDetail.rescaleButton" = "Rescale Missed Work";
+"goalDetail.alertTitle" = "Goal Update Failed";
+"goalDetail.error.updateChecklist" = "Unable to update this checklist item. %@";
+"goalDetail.error.rescale" = "Unable to rescale this goal. %@";
+
+"dailyChecklist.defaultTitle" = "Today";
+"dailyChecklist.completed.accessibility" = "Completed";
+"dailyChecklist.notCompleted.accessibility" = "Not completed";
+
+"progress.title" = "Progress";
+"progress.complete" = "%d%% complete";
+
+"calendar.previousMonth.accessibility" = "Previous month";
+"calendar.nextMonth.accessibility" = "Next month";
+"calendar.day.noWork" = "%@, no work scheduled";
+"calendar.day.notStarted" = "%@, work not started";
+"calendar.day.partial" = "%@, partly complete";
+"calendar.day.complete" = "%@, complete";
+"calendar.day.rescaled" = "%@, rescaled";
+
+"model.default.displayName" = "Goal Planner AI";
+"model.lite.displayName" = "Goal Planner AI Lite";
+"modelSetup.title" = "Offline Model";
+"modelSetup.subtitle" = "Download a private planner that runs on your iPhone.";
+"modelSetup.modelLabel" = "Selected model";
+"modelSetup.downloadProgress.accessibility" = "Download progress";
+"modelSetup.useSmallerModel" = "Use Smaller Model";
+"modelSetup.downloading" = "Downloading";
+"modelSetup.downloadModel" = "Download Model";
+"modelSetup.continueWithoutModel" = "Continue Without Model";
+"modelSetup.status.ready" = "Model ready";
+"modelSetup.status.downloadRequired" = "Model download required";
+"modelSetup.status.smallDownloadRequired" = "Small model download required";
+"modelSetup.status.fallbackPlanner" = "Using fallback planner until a model is ready.";
+"modelSetup.status.downloading" = "Downloading %@...";
+"modelSetup.status.downloadFailed" = "Download failed: %@";
+
+"planning.fallback.title.empty" = "New Goal";
+"planning.fallback.item.focus" = "Spend 20 focused minutes on %@";
+"planning.fallback.item.record" = "Record one concrete step you completed";
+"planning.fallback.item.next" = "Choose the next small action";
+
+"scheduler.defaultTemplate" = "Spend focused time on this goal";
+"scheduler.effort.small" = "Small";
+
+"goalStore.error.goalNotFound" = "Goal not found.";
+"goalStore.error.checklistItemNotFound" = "Checklist item not found.";
+"goalStore.error.targetDateInPast" = "Target date cannot be before today.";
+"goalStore.error.loadGoals" = "Failed to load goals: %@";
+"goalStore.error.reconcile" = "Failed to reconcile missed work: %@";
+
+"modelDownload.error.httpStatus" = "Model download failed with HTTP status %d.";
+"modelDownload.error.invalidFile" = "Downloaded model file is invalid.";

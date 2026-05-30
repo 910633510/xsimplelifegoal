@@ -36,20 +36,24 @@ final class ModelSetupViewModel {
         let selectedModelIsReady = modelManager.isModelReady(selectedModel)
         self.selectedModel = selectedModel
         isReady = selectedModelIsReady
-        statusText = selectedModelIsReady ? "Model ready" : "Model download required"
+        statusText = selectedModelIsReady
+            ? AppStrings.string("modelSetup.status.ready")
+            : AppStrings.string("modelSetup.status.downloadRequired")
     }
 
     func useSmallModel() {
         guard !isDownloading else { return }
         selectedModel = ModelManager.smallFallbackModel
         isReady = modelManager.isModelReady(selectedModel)
-        statusText = isReady ? "Model ready" : "Small model download required"
+        statusText = isReady
+            ? AppStrings.string("modelSetup.status.ready")
+            : AppStrings.string("modelSetup.status.smallDownloadRequired")
     }
 
     func continueWithoutModel() {
         guard !isDownloading else { return }
         allowsDashboardWithoutReadyModel = true
-        statusText = "Using fallback planner until a model is ready."
+        statusText = AppStrings.string("modelSetup.status.fallbackPlanner")
     }
 
     func downloadSelectedModel() async throws {
@@ -57,7 +61,10 @@ final class ModelSetupViewModel {
         isDownloading = true
         isReady = false
         downloadProgress = 0
-        statusText = "Downloading \(model.displayName)..."
+        statusText = AppStrings.format(
+            "modelSetup.status.downloading",
+            arguments: [AppStrings.modelDisplayName(for: model)]
+        )
         do {
             try await downloadSelectedModelAction(model) { [weak self] progress in
                 self?.downloadProgress = min(max(progress, 0), 1)
@@ -67,12 +74,12 @@ final class ModelSetupViewModel {
             }
             isReady = true
             downloadProgress = 1
-            statusText = "Model ready"
+            statusText = AppStrings.string("modelSetup.status.ready")
             isDownloading = false
         } catch {
             isReady = false
             downloadProgress = nil
-            statusText = "Download failed: \(error.localizedDescription)"
+            statusText = AppStrings.format("modelSetup.status.downloadFailed", arguments: [error.localizedDescription])
             isDownloading = false
             throw error
         }

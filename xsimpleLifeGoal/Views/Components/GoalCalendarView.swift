@@ -21,7 +21,7 @@ struct GoalCalendarView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!GoalCalendarHelper.canNavigateToPreviousMonth(from: visibleMonth, goal: goal, calendar: calendar))
-                .accessibilityLabel("Previous month")
+                .accessibilityLabel(AppStrings.key("calendar.previousMonth.accessibility"))
 
                 Spacer()
 
@@ -37,7 +37,7 @@ struct GoalCalendarView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(!GoalCalendarHelper.canNavigateToNextMonth(from: visibleMonth, goal: goal, calendar: calendar))
-                .accessibilityLabel("Next month")
+                .accessibilityLabel(AppStrings.key("calendar.nextMonth.accessibility"))
             }
             .foregroundStyle(AppTheme.accent)
 
@@ -58,9 +58,13 @@ struct GoalCalendarView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(16)
         .background(AppTheme.card)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous)
+                .stroke(AppTheme.border, lineWidth: 1)
+        )
     }
 
     private var monthTitle: String {
@@ -96,7 +100,7 @@ private struct GoalCalendarDayButton: View {
                     }
                     .foregroundStyle(isSelected ? Color.white : AppTheme.ink)
                     .frame(maxWidth: .infinity, minHeight: 42)
-                    .background(isSelected ? AppTheme.accent : Color.clear)
+                    .background(isSelected ? AppTheme.accent : dayBackground)
                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                     .overlay(todayStroke(for: date))
                     .opacity(day.isInGoalRange ? 1 : 0.32)
@@ -151,19 +155,23 @@ private struct GoalCalendarDayButton: View {
         }
     }
 
+    private var dayBackground: Color {
+        day.isInGoalRange ? AppTheme.accentSoft.opacity(0.28) : Color.clear
+    }
+
     private func accessibilityLabel(for date: Date) -> String {
         let dateText = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
         switch day.completion {
         case .empty, .none:
-            return "\(dateText), no work scheduled"
+            return AppStrings.format("calendar.day.noWork", arguments: [dateText])
         case .notStarted:
-            return "\(dateText), work not started"
+            return AppStrings.format("calendar.day.notStarted", arguments: [dateText])
         case .partial:
-            return "\(dateText), partly complete"
+            return AppStrings.format("calendar.day.partial", arguments: [dateText])
         case .complete:
-            return "\(dateText), complete"
+            return AppStrings.format("calendar.day.complete", arguments: [dateText])
         case .rescaled:
-            return "\(dateText), rescaled"
+            return AppStrings.format("calendar.day.rescaled", arguments: [dateText])
         }
     }
 }

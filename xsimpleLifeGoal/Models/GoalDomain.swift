@@ -34,9 +34,11 @@ struct Goal: Identifiable, Codable, Equatable {
     }
 
     func checklistSummary(on date: Date, calendar: Calendar) -> String {
-        guard let plan = dailyPlan(on: date, calendar: calendar) else { return "No checklist yet" }
+        guard let plan = dailyPlan(on: date, calendar: calendar) else {
+            return AppStrings.string("goal.checklist.empty")
+        }
         let completed = plan.items.filter(\.isCompleted).count
-        return "\(completed)/\(plan.items.count) items complete today"
+        return AppStrings.format("goal.checklist.summary", arguments: [completed, plan.items.count])
     }
 }
 

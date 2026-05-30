@@ -7,29 +7,50 @@ struct ModelSetupView: View {
         ZStack {
             AppTheme.background.ignoresSafeArea()
 
-            VStack(spacing: 20) {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 48, weight: .medium))
-                    .foregroundStyle(AppTheme.accent)
-                    .accessibilityHidden(true)
+            VStack(spacing: 18) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous)
+                        .fill(AppTheme.accentSoft)
+                        .frame(width: 76, height: 76)
+                    Image(systemName: "brain.head.profile")
+                        .font(.system(size: 38, weight: .medium))
+                        .foregroundStyle(AppTheme.accent)
+                }
+                .accessibilityHidden(true)
 
-                VStack(spacing: 8) {
-                    Text("Offline Model")
+                VStack(spacing: 6) {
+                    Text(AppStrings.key("modelSetup.title"))
                         .font(.title.weight(.semibold))
                         .foregroundStyle(AppTheme.ink)
 
-                    Text(viewModel.statusText)
+                    Text(AppStrings.key("modelSetup.subtitle"))
                         .font(.subheadline)
                         .foregroundStyle(AppTheme.muted)
+                        .multilineTextAlignment(.center)
+
+                    Text(viewModel.statusText)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(AppTheme.muted)
+                        .multilineTextAlignment(.center)
                 }
 
-                Text(viewModel.selectedModel.displayName)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.ink)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(AppTheme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(AppStrings.key("modelSetup.modelLabel"), systemImage: "cpu")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.muted)
+                    Text(AppStrings.modelDisplayName(for: viewModel.selectedModel))
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(16)
+                .background(AppTheme.card)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous)
+                        .stroke(AppTheme.border, lineWidth: 1)
+                )
+                .shadow(color: AppTheme.shadow, radius: 10, x: 0, y: 4)
 
                 if viewModel.isDownloading {
                     VStack(spacing: 8) {
@@ -40,8 +61,11 @@ struct ModelSetupView: View {
                             .foregroundStyle(AppTheme.muted)
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(14)
+                    .background(AppTheme.cardAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Download progress")
+                    .accessibilityLabel(AppStrings.key("modelSetup.downloadProgress.accessibility"))
                     .accessibilityValue(viewModel.downloadProgressText)
                 }
 
@@ -49,7 +73,7 @@ struct ModelSetupView: View {
                     Button {
                         viewModel.useSmallModel()
                     } label: {
-                        Label("Use Smaller Model", systemImage: "arrow.down.forward.and.arrow.up.backward")
+                        Label(AppStrings.key("modelSetup.useSmallerModel"), systemImage: "arrow.down.forward.and.arrow.up.backward")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -66,10 +90,10 @@ struct ModelSetupView: View {
                         }
                     } label: {
                         if viewModel.isDownloading {
-                            Label("Downloading", systemImage: "hourglass")
+                            Label(AppStrings.key("modelSetup.downloading"), systemImage: "hourglass")
                                 .frame(maxWidth: .infinity)
                         } else {
-                            Label("Download Model", systemImage: "square.and.arrow.down")
+                            Label(AppStrings.key("modelSetup.downloadModel"), systemImage: "square.and.arrow.down")
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -80,7 +104,7 @@ struct ModelSetupView: View {
                     Button {
                         viewModel.continueWithoutModel()
                     } label: {
-                        Label("Continue Without Model", systemImage: "arrow.forward")
+                        Label(AppStrings.key("modelSetup.continueWithoutModel"), systemImage: "arrow.forward")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)

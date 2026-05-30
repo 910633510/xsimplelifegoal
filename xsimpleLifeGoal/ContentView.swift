@@ -56,7 +56,7 @@ private struct GoalStoreRootView: View {
         do {
             try initializedStore.reconcileMissedWork()
         } catch {
-            initializedStore.errorMessage = "Failed to reconcile missed work: \(error.localizedDescription)"
+            initializedStore.errorMessage = AppStrings.format("goalStore.error.reconcile", arguments: [error.localizedDescription])
         }
         store = initializedStore
     }

@@ -19,13 +19,23 @@ struct GoalDetailView: View {
                 let activeVisibleMonth = visibleMonth(for: goal, selectedDate: activeSelectedDate)
 
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(goal.originalDescription)
-                        .font(.body)
-                        .foregroundStyle(AppTheme.ink)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(AppStrings.key("goalDetail.defaultTitle"), systemImage: "target")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.muted)
+                        Text(goal.originalDescription)
+                            .font(.body)
+                            .foregroundStyle(AppTheme.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
                         .background(AppTheme.card)
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous)
+                                .stroke(AppTheme.border, lineWidth: 1)
+                        )
 
                     GoalCalendarView(
                         goal: goal,
@@ -48,13 +58,20 @@ struct GoalDetailView: View {
                             setChecklistItem(itemID: itemID, isCompleted: isCompleted)
                         }
                     } else {
-                        Text("No work scheduled for \(checklistTitle(for: activeSelectedDate))")
+                        Label(
+                            AppStrings.format("goalDetail.noWorkScheduled", arguments: [checklistTitle(for: activeSelectedDate)]),
+                            systemImage: "moon"
+                        )
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.muted)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
+                            .padding(16)
                             .background(AppTheme.card)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: AppTheme.radius, style: .continuous)
+                                    .stroke(AppTheme.border, lineWidth: 1)
+                            )
                     }
 
                     ProgressSummaryView(goal: goal)
@@ -62,8 +79,7 @@ struct GoalDetailView: View {
                     Button {
                         rescaleMissedWork()
                     } label: {
-                        Text("Rescale Missed Work")
-                            .font(.headline)
+                        Label(AppStrings.key("goalDetail.rescaleButton"), systemImage: "arrow.triangle.2.circlepath")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
@@ -71,18 +87,18 @@ struct GoalDetailView: View {
                 }
                 .padding()
             } else {
-                ContentUnavailableView("Goal Not Found", systemImage: "target")
+                ContentUnavailableView(AppStrings.key("goalDetail.notFound"), systemImage: "target")
                     .frame(maxWidth: .infinity, minHeight: 360)
             }
         }
         .background(AppTheme.background.ignoresSafeArea())
-        .navigationTitle(goal?.title ?? "Goal")
-        .alert("Goal Update Failed", isPresented: isShowingError) {
-            Button("OK", role: .cancel) {
+        .navigationTitle(goal?.title ?? AppStrings.string("goalDetail.defaultTitle"))
+        .alert(AppStrings.string("goalDetail.alertTitle"), isPresented: isShowingError) {
+            Button(AppStrings.string("common.ok"), role: .cancel) {
                 errorMessage = nil
             }
         } message: {
-            Text(errorMessage ?? "Please try again.")
+            Text(errorMessage ?? AppStrings.string("common.tryAgain"))
         }
     }
 
@@ -108,7 +124,7 @@ struct GoalDetailView: View {
         do {
             try store.setChecklistItem(goalID: goalID, itemID: itemID, isCompleted: isCompleted)
         } catch {
-            errorMessage = "Unable to update this checklist item. \(error.localizedDescription)"
+            errorMessage = AppStrings.format("goalDetail.error.updateChecklist", arguments: [error.localizedDescription])
         }
     }
 
@@ -116,7 +132,7 @@ struct GoalDetailView: View {
         do {
             try store.rescaleMissedDay(goalID: goalID, missedDate: Date())
         } catch {
-            errorMessage = "Unable to rescale this goal. \(error.localizedDescription)"
+            errorMessage = AppStrings.format("goalDetail.error.rescale", arguments: [error.localizedDescription])
         }
     }
 
