@@ -28,7 +28,7 @@ final class GoalStore {
     func createGoal(description: String, targetDate: Date?) async throws {
         let start = now()
         let resolvedTarget = scheduler.resolveTargetDate(startDate: start, requestedTargetDate: targetDate)
-        let days = max(1, Calendar.current.dateComponents([.day], from: start, to: resolvedTarget).day ?? 1)
+        let days = scheduler.daysAvailable(from: start, to: resolvedTarget)
         let generated = try await planningEngine.generatePlan(description: description, daysAvailable: days)
         let goalID = UUID()
         let plans = scheduler.makeDailyPlans(goalID: goalID, startDate: start, targetDate: resolvedTarget, templates: generated.dailyChecklist)
@@ -43,19 +43,22 @@ final class GoalStore {
             dailyPlans: plans
         )
         try repository.save(goal)
-        goals = try repository.fetchGoals()
+        try refreshGoalsAfterSuccessfulChange()
     }
 
     func setChecklistItem(goalID: UUID, itemID: UUID, isCompleted: Bool) throws {
         guard let goalIndex = goals.firstIndex(where: { $0.id == goalID }) else { return }
         var updatedGoal = goals[goalIndex]
+        var didUpdate = false
         for planIndex in updatedGoal.dailyPlans.indices {
             guard let itemIndex = updatedGoal.dailyPlans[planIndex].items.firstIndex(where: { $0.id == itemID }) else { continue }
             updatedGoal.dailyPlans[planIndex].items[itemIndex].isCompleted = isCompleted
             updatedGoal.dailyPlans[planIndex].items[itemIndex].completedDate = isCompleted ? now() : nil
+            didUpdate = true
         }
+        guard didUpdate else { return }
         try repository.save(updatedGoal)
-        goals = try repository.fetchGoals()
+        try refreshGoalsAfterSuccessfulChange()
     }
 
     func rescaleMissedDay(goalID: UUID, missedDate: Date) throws {
@@ -67,6 +70,11 @@ final class GoalStore {
             targetDate: updatedGoal.targetDate
         )
         try repository.save(updatedGoal)
+        try refreshGoalsAfterSuccessfulChange()
+    }
+
+    private func refreshGoalsAfterSuccessfulChange() throws {
         goals = try repository.fetchGoals()
+        errorMessage = nil
     }
 }

@@ -18,6 +18,21 @@ final class GoalStoreTests: XCTestCase {
         XCTAssertEqual(store.goals[0].dailyPlans.count, 2)
     }
 
+    func testCreateGoalPassesDaysAvailableMatchingScheduledPlansToPlanner() async throws {
+        let repository = InMemoryGoalRepository()
+        let scheduler = GoalScheduler(calendar: calendar)
+        let generator = CapturingTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#)
+        let engine = GoalPlanningEngine(generator: generator)
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine, now: { Date(timeIntervalSince1970: 0) })
+
+        try await store.createGoal(description: "learn Spanish", targetDate: Date(timeIntervalSince1970: 86_400))
+
+        let capturedPrompt = await generator.capturedPrompt()
+        let prompt = try XCTUnwrap(capturedPrompt)
+        XCTAssertEqual(store.goals[0].dailyPlans.count, 2)
+        XCTAssertTrue(prompt.contains("Days available: 2"))
+    }
+
     func testInitialFetchFailureSetsErrorMessageAndLeavesGoalsEmpty() {
         let repository = InMemoryGoalRepository(fetchError: TestError.fetchFailed)
         let scheduler = GoalScheduler(calendar: Calendar(identifier: .gregorian))
@@ -27,6 +42,20 @@ final class GoalStoreTests: XCTestCase {
 
         XCTAssertTrue(store.goals.isEmpty)
         XCTAssertNotNil(store.errorMessage)
+    }
+
+    func testSuccessfulCreateClearsInitialFetchErrorMessage() async throws {
+        let repository = InMemoryGoalRepository(fetchError: TestError.fetchFailed)
+        let scheduler = GoalScheduler(calendar: calendar)
+        let engine = GoalPlanningEngine(generator: FixtureTextGenerator(result: #"{"title":"Learn Spanish","dailyChecklist":["Review"]}"#))
+        let store = GoalStore(repository: repository, scheduler: scheduler, planningEngine: engine, now: { Date(timeIntervalSince1970: 0) })
+        XCTAssertNotNil(store.errorMessage)
+        repository.fetchError = nil
+
+        try await store.createGoal(description: "learn Spanish", targetDate: Date(timeIntervalSince1970: 0))
+
+        XCTAssertNil(store.errorMessage)
+        XCTAssertEqual(store.goals.count, 1)
     }
 
     func testTogglesChecklistItemCompletion() async throws {
@@ -152,6 +181,24 @@ private struct FixtureTextGenerator: TextGenerating {
 
     func generateText(prompt: String) async throws -> String {
         result
+    }
+}
+
+private actor CapturingTextGenerator: TextGenerating {
+    let result: String
+    private(set) var prompt: String?
+
+    init(result: String) {
+        self.result = result
+    }
+
+    func generateText(prompt: String) async throws -> String {
+        self.prompt = prompt
+        return result
+    }
+
+    func capturedPrompt() -> String? {
+        prompt
     }
 }
 

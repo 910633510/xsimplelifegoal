@@ -32,6 +32,10 @@ struct GoalScheduler {
         }
     }
 
+    func daysAvailable(from startDate: Date, to targetDate: Date) -> Int {
+        inclusiveDates(from: startDate, through: targetDate).count
+    }
+
     func rescaleAfterMissedDay(plans: [DailyPlan], missedDate: Date, targetDate: Date) -> [DailyPlan] {
         let missedDay = calendar.startOfDay(for: missedDate)
         let remainingDates = inclusiveDates(
