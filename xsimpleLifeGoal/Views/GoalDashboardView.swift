@@ -32,6 +32,9 @@ struct GoalDashboardView: View {
             .sheet(isPresented: $showingCreation) {
                 GoalCreationView(store: store)
             }
+            .navigationDestination(for: UUID.self) { goalID in
+                GoalDetailView(store: store, goalID: goalID)
+            }
         }
     }
 }
