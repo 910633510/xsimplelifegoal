@@ -40,10 +40,12 @@ struct GoalScheduler {
         )
         guard !remainingDates.isEmpty else { return plans }
 
-        let hasAlreadyRescaledRemainingPlan = plans.contains { plan in
-            plan.isRescaled && remainingDates.contains { calendar.isDate($0, inSameDayAs: plan.date) }
+        let catchUpMarker = catchUpMarker(for: missedDay)
+        let hasAlreadyRescaledMissedDay = plans.contains { plan in
+            remainingDates.contains { calendar.isDate($0, inSameDayAs: plan.date) }
+                && plan.items.contains { $0.text.hasPrefix(catchUpMarker) }
         }
-        guard !hasAlreadyRescaledRemainingPlan else { return plans }
+        guard !hasAlreadyRescaledMissedDay else { return plans }
 
         let missedItems = plans
             .filter { calendar.isDate($0.date, inSameDayAs: missedDay) }
@@ -56,6 +58,7 @@ struct GoalScheduler {
         for (index, item) in missedItems.enumerated() {
             var redistributed = item
             redistributed.id = makeID()
+            redistributed.text = catchUpText(for: item.text, missedDay: missedDay)
             redistributed.isCompleted = false
             redistributed.completedDate = nil
             itemBuckets[index % itemBuckets.count].append(redistributed)
@@ -83,5 +86,19 @@ struct GoalScheduler {
             current = calendar.date(byAdding: .day, value: 1, to: current)!
         }
         return dates
+    }
+
+    private func catchUpText(for text: String, missedDay: Date) -> String {
+        "\(catchUpMarker(for: missedDay))\(text)"
+    }
+
+    private func catchUpMarker(for missedDay: Date) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: missedDay)
+        return String(
+            format: "[catch-up %04d-%02d-%02d] ",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
     }
 }

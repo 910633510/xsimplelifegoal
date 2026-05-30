@@ -165,8 +165,9 @@ final class GoalSchedulerTests: XCTestCase {
         plans[0].items[0].completedDate = start
 
         let rescaled = scheduler.rescaleAfterMissedDay(plans: plans, missedDate: start, targetDate: target)
-        let redistributed = try XCTUnwrap(rescaled[1].items.first { $0.text == "Missed unique task" })
+        let redistributed = try XCTUnwrap(rescaled[1].items.first { $0.text.hasSuffix("Missed unique task") })
 
+        XCTAssertEqual(redistributed.text, "[catch-up 2026-05-29] Missed unique task")
         XCTAssertFalse(redistributed.isCompleted)
         XCTAssertNil(redistributed.completedDate)
         XCTAssertNotEqual(redistributed.id, plans[0].items[0].id)
@@ -189,6 +190,28 @@ final class GoalSchedulerTests: XCTestCase {
         let secondRescale = scheduler.rescaleAfterMissedDay(plans: firstRescale, missedDate: start, targetDate: target)
 
         XCTAssertEqual(secondRescale, firstRescale)
+    }
+
+    func testLaterMissedDayCanRescaleAfterEarlierRescale() throws {
+        let goalID = UUID(uuidString: "00000000-0000-0000-0000-000000000011")!
+        let may29 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 29)))
+        let may30 = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 30)))
+        let target = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 6, day: 1)))
+        let scheduler = GoalScheduler(calendar: calendar, makeID: makeDeterministicIDGenerator())
+        var plans = scheduler.makeDailyPlans(
+            goalID: goalID,
+            startDate: may29,
+            targetDate: target,
+            templates: ["Read", "Practice", "Review"]
+        )
+        plans[0].items[0].isCompleted = true
+
+        let rescaledForMay29 = scheduler.rescaleAfterMissedDay(plans: plans, missedDate: may29, targetDate: target)
+        let rescaledForMay30 = scheduler.rescaleAfterMissedDay(plans: rescaledForMay29, missedDate: may30, targetDate: target)
+
+        XCTAssertNotEqual(rescaledForMay30, rescaledForMay29)
+        XCTAssertGreaterThan(rescaledForMay30[2].items.count, rescaledForMay29[2].items.count)
+        XCTAssertTrue(rescaledForMay30[2].items.contains { $0.text.hasPrefix("[catch-up 2026-05-30]") })
     }
 
     func testGoalProgressFractionReflectsCompletedChecklistItems() throws {
