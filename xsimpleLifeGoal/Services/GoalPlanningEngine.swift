@@ -1,6 +1,6 @@
 import Foundation
 
-protocol TextGenerating {
+protocol TextGenerating: Sendable {
     func generateText(prompt: String) async throws -> String
 }
 
@@ -10,7 +10,7 @@ struct GeneratedGoalPlan: Equatable {
     var usedFallback: Bool
 }
 
-struct GoalPlanningEngine {
+struct GoalPlanningEngine: Sendable {
     private let generator: TextGenerating
 
     init(generator: TextGenerating) {
