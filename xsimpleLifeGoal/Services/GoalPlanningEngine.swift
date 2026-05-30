@@ -22,6 +22,8 @@ struct GoalPlanningEngine {
         do {
             let text = try await generator.generateText(prompt: prompt)
             return try parse(text)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             return fallback(description: description)
         }

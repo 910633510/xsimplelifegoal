@@ -24,6 +24,18 @@ final class GoalPlanningEngineTests: XCTestCase {
         XCTAssertEqual(plan.dailyChecklist.count, 3)
         XCTAssertTrue(plan.usedFallback)
     }
+
+    func testGeneratorCancellationPropagates() async throws {
+        let engine = GoalPlanningEngine(generator: CancellingTextGenerator())
+
+        do {
+            _ = try await engine.generatePlan(description: "write a novel", daysAvailable: 365)
+            XCTFail("Expected CancellationError to propagate.")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("Expected CancellationError, got \(error).")
+        }
+    }
 }
 
 private struct FixtureTextGenerator: TextGenerating {
@@ -31,5 +43,11 @@ private struct FixtureTextGenerator: TextGenerating {
 
     func generateText(prompt: String) async throws -> String {
         result
+    }
+}
+
+private struct CancellingTextGenerator: TextGenerating {
+    func generateText(prompt: String) async throws -> String {
+        throw CancellationError()
     }
 }
